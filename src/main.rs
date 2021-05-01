@@ -5,8 +5,9 @@ use anyhow::*;
 
 fn doit() -> Result<()> {
     let text = String::from_utf8(nist::read()?)?;
-    let unchecked = nist::parse::parse(&text).map_err(|e| anyhow!("{}", e))?;
-    dbg!(unchecked);
+    let (_, unchecked) =
+        nist::parse::parse(&text).map_err(|e| anyhow!("{}", e))?;
+    dbg!(nist::check::check(unchecked)?);
     Ok(())
 }
 

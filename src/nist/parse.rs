@@ -7,14 +7,14 @@ use nom::multi::*;
 use nom::sequence::*;
 use std::str::FromStr;
 
-type UncheckedLeap = (u64, u64, Gregorian);
+pub type UncheckedLeap = (u64, u64, Gregorian);
 
 #[derive(Clone, Debug, Default)]
 pub struct UncheckedNIST {
     pub updated: u64,
     pub expires: u64,
     pub leapsecs: Vec<UncheckedLeap>,
-    pub hashval: [u32; 5],
+    pub hash: [u8; 20],
 }
 
 type Result<'a, O> = nom::IResult<&'a str, O, nom::error::Error<&'a str>>;
@@ -83,14 +83,21 @@ fn leapsecs<'a>(input: &'a str) -> Result<'a, Vec<UncheckedLeap>> {
     )))(input)
 }
 
-fn hashval<'a>(input: &'a str) -> Result<'a, [u32; 5]> {
-    let mut hashval: [u32; 5] = Default::default();
+fn hash<'a>(input: &'a str) -> Result<'a, [u8; 20]> {
+    let mut hash32: [u32; 5] = Default::default();
     let (rest, ()) = delimited(
         tag("#h"),
-        fill(preceded(space1, hex32), &mut hashval),
+        fill(preceded(space1, hex32), &mut hash32),
         line_ending,
     )(input)?;
-    Ok((rest, hashval))
+    let mut hash8: [u8; 20] = Default::default();
+    for word in 0..5 {
+        for byte in 0..4 {
+            let it = (hash32[word] << byte * 8) >> 24;
+            hash8[word * 4 + byte] = it as u8;
+        }
+    }
+    Ok((rest, hash8))
 }
 
 pub fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
@@ -99,13 +106,13 @@ pub fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
             preceded(ignore, updated),
             preceded(ignore, expires),
             preceded(ignore, leapsecs),
-            preceded(ignore, hashval),
+            preceded(ignore, hash),
         )),
-        |(updated, expires, leapsecs, hashval): (
-            u64,
-            u64,
-            Vec<UncheckedLeap>,
-            [u32; 5],
-        )| UncheckedNIST { updated, expires, leapsecs, hashval },
+        |(updated, expires, leapsecs, hash)| UncheckedNIST {
+            updated,
+            expires,
+            leapsecs,
+            hash,
+        },
     )(input)
 }

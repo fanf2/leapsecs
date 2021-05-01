@@ -1,5 +1,6 @@
 // fetch and parse the NIST leap-seconds.list
 
+pub mod check;
 pub mod parse;
 
 use anyhow::{Context, Result};

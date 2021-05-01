@@ -51,6 +51,14 @@ impl From<i32> for Gregorian {
     }
 }
 
+pub fn today() -> i32 {
+    use std::time::SystemTime;
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+    // panic if we are in a tardis
+    let unix_date = now.unwrap().as_secs() / 86400;
+    i32::from(Gregorian(1970, 1, 1)) + unix_date as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
