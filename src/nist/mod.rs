@@ -17,6 +17,8 @@ const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
 pub enum Error {
     #[error("checksum failed {0:?} <> {1:?} data {2}")]
     Checksum([u8; 20], [u8; 20], String),
+    #[error("leap seconds list is empty (published {0:?}")]
+    Empty(TimeStamp),
     #[error("leap seconds file has expired ({0:?})")]
     Expired(TimeStamp),
     #[error("starts with {1} seconds at {0:?}")]
@@ -28,13 +30,13 @@ pub enum Error {
     #[error("leap more than one second ({1} -> {2} at {0:?})")]
     LargeLeap(TimeStamp, u16, u16),
     #[error("timestamp and date do not match ({0:?} <> {1:?})")]
-    Mismatch(TimeStamp, TimeStamp),
+    Mismatch(TimeStamp, Gregorian),
     #[error("lack of leap ({1} at {0:?})")]
     NoLeap(TimeStamp, u16),
     #[error("leap seconds are disordered ({0:?} > {1:?})")]
     OutOfOrder(TimeStamp, TimeStamp),
     #[error("DTAI is too large ({0:?})")]
-    Spinny(u64),
+    Spinny(TimeStamp, u64),
     #[error("leap second is after expiry time ({0:?})")]
     TooLate(TimeStamp),
     #[error("timestamp is before 1972 ({0:?})")]
