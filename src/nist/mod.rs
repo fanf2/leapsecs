@@ -20,6 +20,8 @@ const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
 pub enum Error {
     #[error("checksum failed {0:?} <> {1:?} data {2}")]
     Checksum(Hash, Hash, String),
+    #[error("leap second not at end of month ({0:?})")]
+    Date(TimeStamp),
     #[error("leap seconds list is empty (published {0:?}")]
     Empty(TimeStamp),
     #[error("leap seconds file has expired ({0:?})")]

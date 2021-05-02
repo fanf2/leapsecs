@@ -43,7 +43,10 @@ fn check_next(
     }
     if ts.date != date {
         return Err(Error::Mismatch(ts, date));
+    } else if date.day() != 1 {
+        return Err(Error::Date(ts));
     }
+
     let next = if let Some(last) = list.last() {
         if mjd <= last.mjd() {
             return Err(Error::OutOfOrder(TimeStamp::from(last.mjd()), ts));
