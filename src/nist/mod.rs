@@ -50,15 +50,24 @@ pub struct TimeStamp {
 }
 
 pub fn read() -> Result<LeapSecs> {
-    consume(load_file(NIST_FILE).or(save_url())?)
+    read_bytes(&load_file(NIST_FILE).or(save_url())?)
+}
+
+pub fn read_bytes(data: &[u8]) -> Result<LeapSecs> {
+    read_str(std::str::from_utf8(data)?)
 }
 
 pub fn read_file(name: &str) -> Result<LeapSecs> {
-    consume(load_file(name)?)
+    read_bytes(&load_file(name)?)
+}
+
+pub fn read_str(text: &str) -> Result<LeapSecs> {
+    let (_, unchecked) = parse::parse(&text).map_err(|e| anyhow!("{}", e))?;
+    Ok(check::check(unchecked)?)
 }
 
 pub fn read_url(url: &str) -> Result<LeapSecs> {
-    consume(load_url(url)?)
+    read_bytes(&load_url(url)?)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -72,12 +81,6 @@ struct UncheckedNIST {
     pub expires: u64,
     pub leapsecs: Vec<UncheckedLeap>,
     pub hash: [u8; 20],
-}
-
-fn consume(data: Vec<u8>) -> Result<LeapSecs> {
-    let text = String::from_utf8(data)?;
-    let (_, unchecked) = parse::parse(&text).map_err(|e| anyhow!("{}", e))?;
-    Ok(check::check(unchecked)?)
 }
 
 fn save_url() -> Result<Vec<u8>> {
