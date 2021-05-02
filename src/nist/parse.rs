@@ -1,4 +1,6 @@
+use super::{UncheckedLeap, UncheckedNIST};
 use crate::date::*;
+
 use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
@@ -6,16 +8,6 @@ use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
 use std::str::FromStr;
-
-pub type UncheckedLeap = (u64, u64, Gregorian);
-
-#[derive(Clone, Debug, Default)]
-pub struct UncheckedNIST {
-    pub updated: u64,
-    pub expires: u64,
-    pub leapsecs: Vec<UncheckedLeap>,
-    pub hash: [u8; 20],
-}
 
 type Result<'a, O> = nom::IResult<&'a str, O, nom::error::Error<&'a str>>;
 
@@ -100,7 +92,7 @@ fn hash<'a>(input: &'a str) -> Result<'a, [u8; 20]> {
     Ok((rest, hash8))
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
+pub(super) fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
     map(
         tuple((
             preceded(ignore, updated),
