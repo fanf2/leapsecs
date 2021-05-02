@@ -1,5 +1,5 @@
 use super::{Error, TimeStamp};
-use super::{UncheckedLeap, UncheckedNIST};
+use super::{UncheckedLeap, UncheckedList};
 use crate::date::*;
 use crate::leap::*;
 
@@ -31,9 +31,9 @@ fn timestamp(ntp: i64) -> Result<TimeStamp, Error> {
 }
 
 fn check_next(
-    acc: Result<LeapSecs, Error>,
+    acc: Result<Vec<LeapSec>, Error>,
     &(ntp, dtai64, date): &UncheckedLeap,
-) -> Result<LeapSecs, Error> {
+) -> Result<Vec<LeapSec>, Error> {
     let mut list = acc?;
     let ts = timestamp(ntp)?;
     let mjd = ts.mjd;
@@ -48,26 +48,25 @@ fn check_next(
         if mjd <= last.mjd() {
             return Err(Error::OutOfOrder(TimeStamp::from(last.mjd()), ts));
         } else if dtai == last.dtai() - 1 {
-            LeapSecond::Neg { mjd, dtai }
+            LeapSec::Neg { mjd, dtai }
         } else if dtai == last.dtai() {
             return Err(Error::NoLeap(ts, dtai));
         } else if dtai == last.dtai() + 1 {
-            LeapSecond::Pos { mjd, dtai }
+            LeapSec::Pos { mjd, dtai }
         } else {
             return Err(Error::LargeLeap(ts, last.dtai(), dtai));
         }
+    } else if mjd != i32::from(Gregorian(1972, 1, 1)) || dtai != 10 {
+        return Err(Error::FalseStart(ts, dtai));
     } else {
-        if mjd != i32::from(Gregorian(1972, 1, 1)) || dtai != 10 {
-            return Err(Error::FalseStart(ts, dtai));
-        } else {
-            LeapSecond::Zero { mjd, dtai }
-        }
+        LeapSec::Zero { mjd, dtai }
     };
+
     list.push(next);
     Ok(list)
 }
 
-pub(super) fn check(u: UncheckedNIST) -> Result<LeapSecs, Error> {
+pub(super) fn check(u: UncheckedList) -> Result<Vec<LeapSec>, Error> {
     let mut list = u.leapsecs.iter().fold(Ok(Vec::new()), check_next)?;
     let updated = timestamp(u.updated)?;
     let expires = timestamp(u.expires)?;
@@ -77,7 +76,7 @@ pub(super) fn check(u: UncheckedNIST) -> Result<LeapSecs, Error> {
         if expires.mjd <= last.mjd() {
             return Err(Error::TooLate(TimeStamp::from(last.mjd())));
         } else {
-            list.push(LeapSecond::Exp { mjd: expires.mjd });
+            list.push(LeapSec::Exp { mjd: expires.mjd });
         }
     } else {
         return Err(Error::Empty(updated));

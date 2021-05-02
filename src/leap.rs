@@ -5,17 +5,15 @@
 // longer work. At that time DTAI is expected to be less than 4 hours,
 // i.e. 14,400 seconds, which is less than 2^15.
 
-pub type LeapSecs = Vec<LeapSecond>;
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum LeapSecond {
+pub enum LeapSec {
     Zero { mjd: i32, dtai: i16 },
     Neg { mjd: i32, dtai: i16 },
     Pos { mjd: i32, dtai: i16 },
     Exp { mjd: i32 },
 }
 
-impl LeapSecond {
+impl LeapSec {
     pub fn mjd(self) -> i32 {
         match self {
             Self::Zero { mjd, .. } => mjd,

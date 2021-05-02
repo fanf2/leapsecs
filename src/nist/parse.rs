@@ -1,4 +1,4 @@
-use super::{Hash, UncheckedLeap, UncheckedNIST};
+use super::{Hash, UncheckedLeap, UncheckedList};
 use crate::date::*;
 
 use nom::branch::*;
@@ -11,20 +11,20 @@ use std::str::FromStr;
 
 type Result<'a, O> = nom::IResult<&'a str, O, nom::error::Error<&'a str>>;
 
-fn dec64<'a>(input: &'a str) -> Result<'a, i64> {
-    map_res(digit1, |s| i64::from_str(s))(input)
+fn dec64(input: &str) -> Result<i64> {
+    map_res(digit1, i64::from_str)(input)
 }
 
-fn hex32<'a>(input: &'a str) -> Result<'a, u32> {
+fn hex32(input: &str) -> Result<u32> {
     map_res(hex_digit1, |s| u32::from_str_radix(s, 16))(input)
 }
 
 // work around nom bug: fill(Fn) should be fill(FnMut)
-fn space_hex32<'a>(input: &'a str) -> Result<'a, u32> {
+fn space_hex32(input: &str) -> Result<u32> {
     preceded(space1, hex32)(input)
 }
 
-fn month<'a>(input: &'a str) -> Result<'a, i32> {
+fn month(input: &str) -> Result<i32> {
     alt((
         value(1, tag("Jan")),
         value(2, tag("Feb")),
@@ -41,7 +41,7 @@ fn month<'a>(input: &'a str) -> Result<'a, i32> {
     ))(input)
 }
 
-fn date<'a>(input: &'a str) -> Result<'a, Gregorian> {
+fn date(input: &str) -> Result<Gregorian> {
     map(
         tuple((
             preceded(space1, dec64),
@@ -52,27 +52,27 @@ fn date<'a>(input: &'a str) -> Result<'a, Gregorian> {
     )(input)
 }
 
-fn empty<'a>(input: &'a str) -> Result<'a, ()> {
+fn empty(input: &str) -> Result<()> {
     value((), pair(tag("#"), line_ending))(input)
 }
 
-fn comment<'a>(input: &'a str) -> Result<'a, ()> {
+fn comment(input: &str) -> Result<()> {
     value((), tuple((tag("#"), space1, not_line_ending, line_ending)))(input)
 }
 
-fn ignore<'a>(input: &'a str) -> Result<'a, ()> {
+fn ignore(input: &str) -> Result<()> {
     value((), many0_count(alt((empty, comment))))(input)
 }
 
-fn updated<'a>(input: &'a str) -> Result<'a, i64> {
+fn updated(input: &str) -> Result<i64> {
     delimited(pair(tag("#$"), space1), dec64, line_ending)(input)
 }
 
-fn expires<'a>(input: &'a str) -> Result<'a, i64> {
+fn expires(input: &str) -> Result<i64> {
     delimited(pair(tag("#@"), space1), dec64, line_ending)(input)
 }
 
-fn leapsecs<'a>(input: &'a str) -> Result<'a, Vec<UncheckedLeap>> {
+fn leapsecs(input: &str) -> Result<Vec<UncheckedLeap>> {
     many1(tuple((
         terminated(dec64, space1),
         terminated(dec64, space1),
@@ -80,14 +80,14 @@ fn leapsecs<'a>(input: &'a str) -> Result<'a, Vec<UncheckedLeap>> {
     )))(input)
 }
 
-fn hash<'a>(input: &'a str) -> Result<'a, Hash> {
+fn hash(input: &str) -> Result<Hash> {
     let mut hash: Hash = Default::default();
     let (rest, ()) =
         delimited(tag("#h"), fill(space_hex32, &mut hash), line_ending)(input)?;
     Ok((rest, hash))
 }
 
-pub(super) fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
+pub(super) fn parse(input: &str) -> Result<UncheckedList> {
     map(
         tuple((
             preceded(ignore, updated),
@@ -95,7 +95,7 @@ pub(super) fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {
             preceded(ignore, leapsecs),
             preceded(ignore, hash),
         )),
-        |(updated, expires, leapsecs, hash)| UncheckedNIST {
+        |(updated, expires, leapsecs, hash)| UncheckedList {
             updated,
             expires,
             leapsecs,

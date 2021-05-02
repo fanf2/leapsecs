@@ -46,7 +46,7 @@ impl From<i32> for Gregorian {
         if m > 10 {
             Gregorian(y + 1, m - 10, d)
         } else {
-            Gregorian(y + 0, m + 2, d)
+            Gregorian(y, m + 2, d)
         }
     }
 }

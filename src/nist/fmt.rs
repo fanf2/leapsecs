@@ -6,31 +6,38 @@ use super::{Error, Hash};
 use crate::date::*;
 use crate::leap::*;
 
-pub fn format(list: &LeapSecs, updated: i32) -> Result<String, Error> {
+pub fn format(list: &[LeapSec], updated: i32) -> Result<String, Error> {
     let mut out = String::new();
     let updated = mjd2ntp(updated);
     let expires = mjd2ntp(list.last().unwrap().mjd());
-    write!(out, "#$\t{}\n", updated)?;
-    write!(out, "#@\t{}\n", expires)?;
+    writeln!(out, "#$\t{}", updated)?;
+    writeln!(out, "#@\t{}", expires)?;
     for leap in list.iter().take(list.len() - 1) {
-        write!(out, "{}\t{}\t", mjd2ntp(leap.mjd()), leap.dtai())?;
         let date = Gregorian::from(leap.mjd());
         let month = [
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
             "Oct", "Nov", "Dec",
         ][(date.month() - 1) as usize];
-        write!(out, "# {} {} {}\n", date.day(), month, date.year())?;
+        writeln!(
+            out,
+            "{}\t{}\t# {} {} {}",
+            mjd2ntp(leap.mjd()),
+            leap.dtai(),
+            date.day(),
+            month,
+            date.year()
+        )?;
     }
     let hash = sha1(&hashin(list, updated)?);
-    write!(
+    writeln!(
         out,
-        "#h\t{:08x} {:08x} {:08x} {:08x} {:08x}\n",
+        "#h\t{:08x} {:08x} {:08x} {:08x} {:08x}",
         hash[0], hash[1], hash[2], hash[3], hash[4],
     )?;
     Ok(out)
 }
 
-fn hashin(list: &LeapSecs, updated: i64) -> Result<String, Error> {
+fn hashin(list: &[LeapSec], updated: i64) -> Result<String, Error> {
     let expires = mjd2ntp(list.last().unwrap().mjd());
     let mut hashin = String::new();
     write!(hashin, "{}{}", updated, expires)?;
@@ -41,10 +48,10 @@ fn hashin(list: &LeapSecs, updated: i64) -> Result<String, Error> {
 }
 
 pub(super) fn checksum(
-    list: LeapSecs,
+    list: Vec<LeapSec>,
     updated: i32,
     input: Hash,
-) -> Result<LeapSecs, Error> {
+) -> Result<Vec<LeapSec>, Error> {
     let updated = mjd2ntp(updated);
     let hashin = hashin(&list, updated)?;
     let output = sha1(&hashin);
