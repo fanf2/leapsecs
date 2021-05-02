@@ -55,7 +55,7 @@ pub struct TimeStamp {
 pub type Hash = [u32; 5];
 
 pub fn read() -> Result<LeapSecs> {
-    read_bytes(&load_file(NIST_FILE).or(save_url())?)
+    read_bytes(&load_file(NIST_FILE).or_else(save_url)?)
 }
 
 pub fn read_bytes(data: &[u8]) -> Result<LeapSecs> {
@@ -88,7 +88,8 @@ struct UncheckedNIST {
     pub hash: Hash,
 }
 
-fn save_url() -> Result<Vec<u8>> {
+fn save_url(_: anyhow::Error) -> Result<Vec<u8>> {
+    eprintln!("fetching {}", NIST_URL);
     let data = load_url(NIST_URL)?;
     std::fs::write(NIST_FILE, &data)
         .with_context(|| format!("failed to write {}", NIST_FILE))?;
