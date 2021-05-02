@@ -16,6 +16,10 @@ debug = true
 [dependencies]
 anyhow = "~1"
 curl = "~0"
-nom = "~6"
 ring = "~0"
 thiserror = "~1"
+
+[dependencies.nom]
+version = "~6"
+default-features = false
+features = ["std"]
