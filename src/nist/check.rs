@@ -82,5 +82,5 @@ pub(super) fn check(u: UncheckedNIST) -> Result<LeapSecs, Error> {
     } else {
         return Err(Error::Empty(updated));
     }
-    super::hash::check(list, updated.mjd, u.hash)
+    super::fmt::checksum(list, updated.mjd, u.hash)
 }

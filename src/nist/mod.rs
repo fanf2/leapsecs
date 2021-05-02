@@ -9,10 +9,9 @@ use crate::leap::*;
 
 mod check;
 mod fmt;
-mod hash;
 mod parse;
 
-pub use fmt::*;
+pub use fmt::format;
 
 const NIST_FILE: &str = "leap-seconds.list";
 const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
