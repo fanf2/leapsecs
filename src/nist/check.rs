@@ -1,7 +1,3 @@
-use ring::digest::*;
-use std::convert::TryInto;
-use std::fmt::Write;
-
 use super::{Error, TimeStamp};
 use super::{UncheckedLeap, UncheckedNIST};
 use crate::date::*;
@@ -21,12 +17,6 @@ impl From<i32> for TimeStamp {
         let date = Gregorian::from(mjd);
         TimeStamp { ntp, mjd, date }
     }
-}
-
-fn sha1(input: &str) -> [u8; 20] {
-    let hash = digest(&SHA1_FOR_LEGACY_USE_ONLY, input.as_bytes());
-    // panic if sha1 is not the standard size
-    hash.as_ref().try_into().unwrap()
 }
 
 fn timestamp(ntp: i64) -> Result<TimeStamp, Error> {
@@ -78,7 +68,6 @@ fn check_next(
 }
 
 pub(super) fn check(u: UncheckedNIST) -> Result<LeapSecs, Error> {
-    // process the list of leap seconds
     let mut list = u.leapsecs.iter().fold(Ok(Vec::new()), check_next)?;
     let updated = timestamp(u.updated)?;
     let expires = timestamp(u.expires)?;
@@ -93,15 +82,5 @@ pub(super) fn check(u: UncheckedNIST) -> Result<LeapSecs, Error> {
     } else {
         return Err(Error::Empty(updated));
     }
-    // calculate and compare checksum
-    let mut hashin = String::new();
-    write!(hashin, "{}{}", u.updated, u.expires)?;
-    for leap in &u.leapsecs {
-        write!(hashin, "{}{}", leap.0, leap.1)?;
-    }
-    let hash = sha1(&hashin);
-    if u.hash != hash {
-        return Err(Error::Checksum(u.hash, hash, hashin));
-    }
-    Ok(list)
+    super::hash::check(list, updated.mjd, u.hash)
 }

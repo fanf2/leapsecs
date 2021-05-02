@@ -1,4 +1,4 @@
-use super::{UncheckedLeap, UncheckedNIST};
+use super::{Hash, UncheckedLeap, UncheckedNIST};
 use crate::date::*;
 
 use nom::branch::*;
@@ -17,6 +17,11 @@ fn dec64<'a>(input: &'a str) -> Result<'a, i64> {
 
 fn hex32<'a>(input: &'a str) -> Result<'a, u32> {
     map_res(hex_digit1, |s| u32::from_str_radix(s, 16))(input)
+}
+
+// work around nom bug: fill(Fn) should be fill(FnMut)
+fn space_hex32<'a>(input: &'a str) -> Result<'a, u32> {
+    preceded(space1, hex32)(input)
 }
 
 fn month<'a>(input: &'a str) -> Result<'a, i32> {
@@ -75,21 +80,11 @@ fn leapsecs<'a>(input: &'a str) -> Result<'a, Vec<UncheckedLeap>> {
     )))(input)
 }
 
-fn hash<'a>(input: &'a str) -> Result<'a, [u8; 20]> {
-    let mut hash32: [u32; 5] = Default::default();
-    let (rest, ()) = delimited(
-        tag("#h"),
-        fill(preceded(space1, hex32), &mut hash32),
-        line_ending,
-    )(input)?;
-    let mut hash8: [u8; 20] = Default::default();
-    for word in 0..5 {
-        for byte in 0..4 {
-            let it = (hash32[word] << byte * 8) >> 24;
-            hash8[word * 4 + byte] = it as u8;
-        }
-    }
-    Ok((rest, hash8))
+fn hash<'a>(input: &'a str) -> Result<'a, Hash> {
+    let mut hash: Hash = Default::default();
+    let (rest, ()) =
+        delimited(tag("#h"), fill(space_hex32, &mut hash), line_ending)(input)?;
+    Ok((rest, hash))
 }
 
 pub(super) fn parse<'a>(input: &'a str) -> Result<'a, UncheckedNIST> {

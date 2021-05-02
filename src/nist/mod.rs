@@ -8,6 +8,7 @@ use crate::date::*;
 use crate::leap::*;
 
 mod check;
+mod hash;
 mod parse;
 
 const NIST_FILE: &str = "leap-seconds.list";
@@ -16,7 +17,7 @@ const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("checksum failed {0:?} <> {1:?} data {2}")]
-    Checksum([u8; 20], [u8; 20], String),
+    Checksum(Hash, Hash, String),
     #[error("leap seconds list is empty (published {0:?}")]
     Empty(TimeStamp),
     #[error("leap seconds file has expired ({0:?})")]
@@ -51,6 +52,8 @@ pub struct TimeStamp {
     date: Gregorian,
 }
 
+pub type Hash = [u32; 5];
+
 pub fn read() -> Result<LeapSecs> {
     read_bytes(&load_file(NIST_FILE).or(save_url())?)
 }
@@ -82,7 +85,7 @@ struct UncheckedNIST {
     pub updated: i64,
     pub expires: i64,
     pub leapsecs: Vec<UncheckedLeap>,
-    pub hash: [u8; 20],
+    pub hash: Hash,
 }
 
 fn save_url() -> Result<Vec<u8>> {
