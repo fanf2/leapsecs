@@ -7,29 +7,18 @@ use super::{UncheckedLeap, UncheckedNIST};
 use crate::date::*;
 use crate::leap::*;
 
-impl From<u64> for TimeStamp {
-    fn from(ntp: u64) -> TimeStamp {
-        let epoch = i32::from(Gregorian(1900, 1, 1));
-        let mjd = (ntp / 86400) as i32 + epoch;
+impl From<i64> for TimeStamp {
+    fn from(ntp: i64) -> TimeStamp {
+        let mjd = ntp2mjd(ntp);
         let date = Gregorian::from(mjd);
-        TimeStamp { ntp, mjd, date }
-    }
-}
-
-impl From<Gregorian> for TimeStamp {
-    fn from(date: Gregorian) -> TimeStamp {
-        let epoch = i32::from(Gregorian(1900, 1, 1));
-        let mjd = i32::from(date);
-        let ntp = (mjd - epoch) as u64 * 86400;
         TimeStamp { ntp, mjd, date }
     }
 }
 
 impl From<i32> for TimeStamp {
     fn from(mjd: i32) -> TimeStamp {
-        let epoch = i32::from(Gregorian(1900, 1, 1));
+        let ntp = mjd2ntp(mjd);
         let date = Gregorian::from(mjd);
-        let ntp = (mjd - epoch) as u64 * 86400;
         TimeStamp { ntp, mjd, date }
     }
 }
@@ -40,11 +29,11 @@ fn sha1(input: &str) -> [u8; 20] {
     hash.as_ref().try_into().unwrap()
 }
 
-fn timestamp(ntp: u64) -> Result<TimeStamp, Error> {
+fn timestamp(ntp: i64) -> Result<TimeStamp, Error> {
     let ts = TimeStamp::from(ntp);
     if ts.date.year() < 1972 {
         Err(Error::TooSoon(ts))
-    } else if ts != TimeStamp::from(ts.date) {
+    } else if ts != TimeStamp::from(ts.mjd) {
         Err(Error::Fractional(ts))
     } else {
         Ok(ts)
@@ -58,8 +47,8 @@ fn check_next(
     let mut list = acc?;
     let ts = timestamp(ntp)?;
     let mjd = ts.mjd;
-    let dtai = dtai64 as u16;
-    if dtai as u64 != dtai64 {
+    let dtai = dtai64 as i16;
+    if dtai as i64 != dtai64 {
         return Err(Error::Spinny(ts, dtai64));
     }
     if ts.date != date {

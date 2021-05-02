@@ -59,6 +59,22 @@ pub fn today() -> i32 {
     i32::from(Gregorian(1970, 1, 1)) + unix_date as i32
 }
 
+pub fn mjd2ntp(mjd: i32) -> i64 {
+    86400 * (mjd - ntp2mjd(0)) as i64
+}
+
+pub fn mjd2unix(mjd: i32) -> i64 {
+    86400 * (mjd - unix2mjd(0)) as i64
+}
+
+pub fn ntp2mjd(ntp: i64) -> i32 {
+    i32::from(Gregorian(1900, 1, 1)) + ntp.div_euclid(86400) as i32
+}
+
+pub fn unix2mjd(unix: i64) -> i32 {
+    i32::from(Gregorian(1970, 1, 1)) + unix.div_euclid(86400) as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

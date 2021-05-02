@@ -22,21 +22,21 @@ pub enum Error {
     #[error("leap seconds file has expired ({0:?})")]
     Expired(TimeStamp),
     #[error("starts with {1} seconds at {0:?}")]
-    FalseStart(TimeStamp, u16),
+    FalseStart(TimeStamp, i16),
     #[error("format error {0}")]
     Format(#[from] std::fmt::Error),
     #[error("timestamp is not midnight ({0:?})")]
     Fractional(TimeStamp),
     #[error("leap more than one second ({1} -> {2} at {0:?})")]
-    LargeLeap(TimeStamp, u16, u16),
+    LargeLeap(TimeStamp, i16, i16),
     #[error("timestamp and date do not match ({0:?} <> {1:?})")]
     Mismatch(TimeStamp, Gregorian),
     #[error("lack of leap ({1} at {0:?})")]
-    NoLeap(TimeStamp, u16),
+    NoLeap(TimeStamp, i16),
     #[error("leap seconds are disordered ({0:?} > {1:?})")]
     OutOfOrder(TimeStamp, TimeStamp),
     #[error("DTAI is too large ({0:?})")]
-    Spinny(TimeStamp, u64),
+    Spinny(TimeStamp, i64),
     #[error("leap second is after expiry time ({0:?})")]
     TooLate(TimeStamp),
     #[error("timestamp is before 1972 ({0:?})")]
@@ -46,7 +46,7 @@ pub enum Error {
 // just for error reporting
 #[derive(Debug, Eq, PartialEq)]
 pub struct TimeStamp {
-    ntp: u64,
+    ntp: i64,
     mjd: i32,
     date: Gregorian,
 }
@@ -75,12 +75,12 @@ pub fn read_url(url: &str) -> Result<LeapSecs> {
 ////////////////////////////////////////////////////////////////////////
 
 // timestamp, DTAI, date
-type UncheckedLeap = (u64, u64, Gregorian);
+type UncheckedLeap = (i64, i64, Gregorian);
 
 #[derive(Clone, Debug, Default)]
 struct UncheckedNIST {
-    pub updated: u64,
-    pub expires: u64,
+    pub updated: i64,
+    pub expires: i64,
     pub leapsecs: Vec<UncheckedLeap>,
     pub hash: [u8; 20],
 }

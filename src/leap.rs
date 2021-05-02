@@ -3,15 +3,15 @@
 // Before the year 4000 we expect there will be more than one leap
 // second each month, at which point UTC as currently defined will no
 // longer work. At that time DTAI is expected to be less than 4 hours,
-// i.e. 14,400 seconds, which is less than 2^16.
+// i.e. 14,400 seconds, which is less than 2^15.
 
 pub type LeapSecs = Vec<LeapSecond>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LeapSecond {
-    Zero { mjd: i32, dtai: u16 },
-    Neg { mjd: i32, dtai: u16 },
-    Pos { mjd: i32, dtai: u16 },
+    Zero { mjd: i32, dtai: i16 },
+    Neg { mjd: i32, dtai: i16 },
+    Pos { mjd: i32, dtai: i16 },
     Exp { mjd: i32 },
 }
 
@@ -24,7 +24,7 @@ impl LeapSecond {
             Self::Exp { mjd } => mjd,
         }
     }
-    pub fn dtai(self) -> u16 {
+    pub fn dtai(self) -> i16 {
         match self {
             Self::Zero { dtai, .. } => dtai,
             Self::Neg { dtai, .. } => dtai,

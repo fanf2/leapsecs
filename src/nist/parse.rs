@@ -11,8 +11,8 @@ use std::str::FromStr;
 
 type Result<'a, O> = nom::IResult<&'a str, O, nom::error::Error<&'a str>>;
 
-fn dec64<'a>(input: &'a str) -> Result<'a, u64> {
-    map_res(digit1, |s| u64::from_str(s))(input)
+fn dec64<'a>(input: &'a str) -> Result<'a, i64> {
+    map_res(digit1, |s| i64::from_str(s))(input)
 }
 
 fn hex32<'a>(input: &'a str) -> Result<'a, u32> {
@@ -59,11 +59,11 @@ fn ignore<'a>(input: &'a str) -> Result<'a, ()> {
     value((), many0_count(alt((empty, comment))))(input)
 }
 
-fn updated<'a>(input: &'a str) -> Result<'a, u64> {
+fn updated<'a>(input: &'a str) -> Result<'a, i64> {
     delimited(pair(tag("#$"), space1), dec64, line_ending)(input)
 }
 
-fn expires<'a>(input: &'a str) -> Result<'a, u64> {
+fn expires<'a>(input: &'a str) -> Result<'a, i64> {
     delimited(pair(tag("#@"), space1), dec64, line_ending)(input)
 }
 
