@@ -5,6 +5,6 @@ mod leap;
 mod nist;
 
 fn main() -> Result<()> {
-    dbg!(nist::read()?);
+    print!("{}", nist::format(&nist::read()?, date::today())?);
     Ok(())
 }

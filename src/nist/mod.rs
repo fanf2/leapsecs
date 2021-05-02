@@ -8,8 +8,11 @@ use crate::date::*;
 use crate::leap::*;
 
 mod check;
+mod fmt;
 mod hash;
 mod parse;
+
+pub use fmt::*;
 
 const NIST_FILE: &str = "leap-seconds.list";
 const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
@@ -126,4 +129,21 @@ fn curl_get(url: &str, buffer: &mut Vec<u8>) -> Result<()> {
     })?;
     xfer.perform()?;
     Ok(())
+}
+
+////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::date;
+    use crate::nist;
+
+    #[test]
+    fn test() {
+        let original = nist::read().expect("get leap-seconds.list");
+        let printed = nist::format(&original, date::today())
+            .expect("formatting leap seconds");
+        let parsed = nist::read_str(&printed).expect("re-parsing leap-seconds");
+        assert_eq!(original, parsed);
+    }
 }
