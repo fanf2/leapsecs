@@ -4,7 +4,7 @@ use std::fmt::Write;
 
 use super::{Error, Hash};
 use crate::date::*;
-use crate::leap::*;
+use crate::leapsecs::*;
 
 pub fn format(list: &[LeapSec], updated: i32) -> Result<String, Error> {
     let mut out = String::new();

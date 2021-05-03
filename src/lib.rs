@@ -1,5 +1,5 @@
 pub mod date;
-pub mod leap;
+pub mod leapsecs;
 pub mod nist;
 
-pub use leap::*;
+pub use crate::leapsecs::*;

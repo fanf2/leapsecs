@@ -2,7 +2,7 @@
 use anyhow::*;
 
 mod date;
-mod leap;
+mod leapsecs;
 mod nist;
 
 fn main() -> Result<()> {

@@ -5,7 +5,7 @@ use std::io::Read;
 use thiserror::Error;
 
 use crate::date::*;
-use crate::leap::*;
+use crate::leapsecs::*;
 
 mod check;
 mod fmt;

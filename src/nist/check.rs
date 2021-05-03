@@ -1,7 +1,7 @@
 use super::{Error, TimeStamp};
 use super::{UncheckedLeap, UncheckedList};
 use crate::date::*;
-use crate::leap::*;
+use crate::leapsecs::*;
 
 impl From<i64> for TimeStamp {
     fn from(ntp: i64) -> TimeStamp {
