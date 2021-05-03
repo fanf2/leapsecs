@@ -26,53 +26,52 @@ impl TryFrom<Vec<LeapSec>> for LeapSecs {
             return Err(Error::Empty());
         }
         let last = list.len() - 1;
-
         let mut prev = LeapSec::zero();
-        for (i, &this) in list.iter().enumerate() {
-            match this {
+        for (i, &next) in list.iter().enumerate() {
+            let inorder = |always| {
+                if always || next.mjd() <= prev.mjd() {
+                    Err(Error::OutOfOrder(prev, next))
+                } else {
+                    Ok(())
+                }
+            };
+            let leap = |err: fn(LeapSec, LeapSec) -> Error, sign| {
+                if next.dtai() != prev.dtai() + sign {
+                    Err(err(prev, next))
+                } else {
+                    Ok(())
+                }
+            };
+            match next {
                 LeapSec::Zero { .. } => {
-                    let _ = mjd2month(this.mjd())?;
+                    let _ = mjd2month(next.mjd())?;
                     if i != 0 {
-                        return Err(Error::OutOfOrder(prev, this));
+                        return Err(Error::OutOfOrder(prev, next));
                     }
-                    if prev != this {
-                        return Err(Error::FalseStart(this));
+                    if prev != next {
+                        return Err(Error::FalseStart(next));
                     }
                 }
-
                 LeapSec::Neg { .. } => {
-                    let _ = mjd2month(this.mjd())?;
-                    if i == 0 || i == last || this.mjd() <= prev.mjd() {
-                        return Err(Error::OutOfOrder(prev, this));
-                    }
-                    if this.dtai() != prev.dtai() - 1 {
-                        return Err(Error::WrongNeg(prev, this));
-                    }
-                    prev = this;
+                    let _ = mjd2month(next.mjd())?;
+                    inorder(i == 0 || i == last)?;
+                    leap(Error::WrongNeg, -1)?;
+                    prev = next;
                 }
-
                 LeapSec::Pos { .. } => {
-                    let _ = mjd2month(this.mjd())?;
-                    if i == 0 || i == last || this.mjd() <= prev.mjd() {
-                        return Err(Error::OutOfOrder(prev, this));
-                    }
-                    if this.dtai() != prev.dtai() + 1 {
-                        return Err(Error::WrongPos(prev, this));
-                    }
-                    prev = this;
+                    let _ = mjd2month(next.mjd())?;
+                    inorder(i == 0 || i == last)?;
+                    leap(Error::WrongPos, 1)?;
+                    prev = next;
                 }
-
                 LeapSec::Exp { .. } => {
-                    if i != last || this.mjd() <= prev.mjd() {
-                        return Err(Error::OutOfOrder(prev, this));
-                    }
-                    if this.mjd() <= today() {
-                        return Err(Error::Expired(this));
+                    inorder(i != last)?;
+                    if next.mjd() <= today() {
+                        return Err(Error::Expired(next));
                     }
                 }
             }
         }
-
         Ok(LeapSecs(list))
     }
 }
