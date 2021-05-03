@@ -117,6 +117,13 @@ pub fn mjd2month(mjd: i32) -> Result<i32> {
     }
 }
 
+pub fn months_between(prev: i32, next: i32) -> i32 {
+    let prev = Gregorian::from(prev);
+    let next = Gregorian::from(next);
+    (next.year() * 12 + next.month() - 1)
+        - (prev.year() * 12 + prev.month() - 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,16 +1,14 @@
 use std::convert::TryFrom;
-use std::str::FromStr;
 
 use crate::date::*;
 use crate::leapsecs::*;
 
-impl FromStr for LeapSecs {
+impl std::str::FromStr for LeapSecs {
     type Err = Error;
     fn from_str(s: &str) -> Result<LeapSecs> {
-        let mut list = Vec::new();
-        let mut month = mjd2month(i32::from(Gregorian(1972, 1, 1)))?;
-        let mut dtai = 10;
-        list.push(LeapSec::Zero { mjd: month2mjd(month), dtai });
+        let mut list = vec![LeapSec::zero()];
+        let mut month = mjd2month(list[0].mjd())?;
+        let mut dtai = list[0].dtai();
         let (mut digits, mut gap) = (0, 0);
         for c in s.chars() {
             match (digits, c) {
@@ -49,5 +47,23 @@ impl FromStr for LeapSecs {
             }
         }
         LeapSecs::try_from(list)
+    }
+}
+
+impl std::fmt::Display for LeapSecs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let list: &[LeapSec] = self.into();
+        let mut prev = LeapSec::zero();
+        for &next in list.iter() {
+            let gap = months_between(prev.mjd(), next.mjd());
+            match next {
+                LeapSec::Zero { .. } => (),
+                LeapSec::Neg { .. } => write!(f, "{}-", gap)?,
+                LeapSec::Pos { .. } => write!(f, "{}+", gap)?,
+                LeapSec::Exp { .. } => write!(f, "{}?", gap)?,
+            }
+            prev = next;
+        }
+        Ok(())
     }
 }

@@ -8,6 +8,8 @@ mod nist;
 mod txt;
 
 fn main() -> Result<()> {
-    print!("{}", nist::format(&nist::read()?, date::today())?);
+    let list = nist::read()?;
+    print!("{}", nist::format(&list, date::today())?);
+    print!("{}", &list);
     Ok(())
 }
