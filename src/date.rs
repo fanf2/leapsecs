@@ -1,3 +1,5 @@
+use crate::leapsecs::{Error, Result};
+
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Gregorian(pub i32, pub i32, pub i32);
 
@@ -16,6 +18,32 @@ impl Gregorian {
 impl std::fmt::Display for Gregorian {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:04}-{:02}-{:02}", self.year(), self.month(), self.day(),)
+    }
+}
+
+// for error reporting
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Eq, PartialEq)]
+pub struct MJD(pub i32);
+
+impl std::fmt::Display for MJD {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} mjd {}", Gregorian::from(self.0), self.0)
+    }
+}
+
+// for error reporting
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Eq, PartialEq)]
+pub struct NTP(pub i64);
+
+impl std::fmt::Display for NTP {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Ok(mjd) = ntp2mjd(self.0) {
+            write!(f, "{} ntp {}", MJD(mjd), self.0)
+        } else {
+            write!(f, "{}", self.0)
+        }
     }
 }
 
@@ -55,24 +83,38 @@ pub fn today() -> i32 {
     use std::time::SystemTime;
     let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
     // panic if we are in a tardis
-    let unix_date = now.unwrap().as_secs() / 86400;
+    let unix_date = now.unwrap().as_secs().div_euclid(86400);
     i32::from(Gregorian(1970, 1, 1)) + unix_date as i32
 }
 
 pub fn mjd2ntp(mjd: i32) -> i64 {
-    86400 * (mjd - ntp2mjd(0)) as i64
+    86400 * (mjd - i32::from(Gregorian(1900, 1, 1))) as i64
 }
 
-pub fn mjd2unix(mjd: i32) -> i64 {
-    86400 * (mjd - unix2mjd(0)) as i64
+pub fn month2mjd(month: i32) -> i32 {
+    let year = month.div_euclid(12);
+    let month = month.rem_euclid(12);
+    i32::from(Gregorian(year, month + 1, 1))
 }
 
-pub fn ntp2mjd(ntp: i64) -> i32 {
-    i32::from(Gregorian(1900, 1, 1)) + ntp.div_euclid(86400) as i32
+pub fn ntp2mjd(ntp: i64) -> Result<i32> {
+    let days = ntp.div_euclid(86400) as i32;
+    let secs = ntp.rem_euclid(86400) as i32;
+    let mjd = i32::from(Gregorian(1900, 1, 1)) + days;
+    if secs == 0 {
+        Ok(mjd)
+    } else {
+        Err(Error::Midnight(NTP(ntp)))
+    }
 }
 
-pub fn unix2mjd(unix: i64) -> i32 {
-    i32::from(Gregorian(1970, 1, 1)) + unix.div_euclid(86400) as i32
+pub fn mjd2month(mjd: i32) -> Result<i32> {
+    let date = Gregorian::from(mjd);
+    if date.day() == 1 {
+        Ok(date.year() * 12 + date.month() - 1)
+    } else {
+        Err(Error::MonthFirst(MJD(mjd)))
+    }
 }
 
 #[cfg(test)]

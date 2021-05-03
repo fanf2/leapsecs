@@ -1,13 +1,11 @@
 // fetch and parse the NIST leap-seconds.list
 
-use anyhow::*;
+use anyhow::Context;
 use std::io::Read;
-use thiserror::Error;
 
 use crate::date::*;
 use crate::leapsecs::*;
 
-mod check;
 mod fmt;
 mod parse;
 
@@ -16,73 +14,43 @@ pub use fmt::format;
 const NIST_FILE: &str = "leap-seconds.list";
 const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("checksum failed {0:?} <> {1:?} data {2}")]
-    Checksum(Hash, Hash, String),
-    #[error("leap second not at end of month ({0:?})")]
-    Date(TimeStamp),
-    #[error("leap seconds list is empty (published {0:?}")]
-    Empty(TimeStamp),
-    #[error("leap seconds file has expired ({0:?})")]
-    Expired(TimeStamp),
-    #[error("starts with {1} seconds at {0:?}")]
-    FalseStart(TimeStamp, i16),
-    #[error("format error {0}")]
-    Format(#[from] std::fmt::Error),
-    #[error("timestamp is not midnight ({0:?})")]
-    Fractional(TimeStamp),
-    #[error("leap more than one second ({1} -> {2} at {0:?})")]
-    LargeLeap(TimeStamp, i16, i16),
-    #[error("timestamp and date do not match ({0:?} <> {1:?})")]
-    Mismatch(TimeStamp, Gregorian),
-    #[error("lack of leap ({1} at {0:?})")]
-    NoLeap(TimeStamp, i16),
-    #[error("leap seconds are disordered ({0:?} > {1:?})")]
-    OutOfOrder(TimeStamp, TimeStamp),
-    #[error("DTAI is too large ({0:?})")]
-    Spinny(TimeStamp, i64),
-    #[error("leap second is after expiry time ({0:?})")]
-    TooLate(TimeStamp),
-    #[error("timestamp is before 1972 ({0:?})")]
-    TooSoon(TimeStamp),
+pub fn read() -> anyhow::Result<LeapSecs> {
+    Ok(read_bytes(&load_file(NIST_FILE).or_else(save_url)?)?)
 }
 
-// just for error reporting
-#[derive(Debug, Eq, PartialEq)]
-pub struct TimeStamp {
-    ntp: i64,
-    mjd: i32,
-    date: Gregorian,
-}
-
-pub type Hash = [u32; 5];
-
-pub fn read() -> Result<Vec<LeapSec>> {
-    read_bytes(&load_file(NIST_FILE).or_else(save_url)?)
-}
-
-pub fn read_bytes(data: &[u8]) -> Result<Vec<LeapSec>> {
+pub fn read_bytes(data: &[u8]) -> Result<LeapSecs> {
     read_str(std::str::from_utf8(data)?)
 }
 
-pub fn read_file(name: &str) -> Result<Vec<LeapSec>> {
-    read_bytes(&load_file(name)?)
+pub fn read_file(name: &str) -> anyhow::Result<LeapSecs> {
+    Ok(read_bytes(&load_file(name)?)?)
 }
 
-pub fn read_str(text: &str) -> Result<Vec<LeapSec>> {
-    let (_, unchecked) = parse::parse(&text).map_err(|e| anyhow!("{}", e))?;
-    Ok(check::check(unchecked)?)
+pub fn read_str(text: &str) -> Result<LeapSecs> {
+    match parse::parse(&text) {
+        Ok((_, unchecked)) => fmt::check(unchecked),
+        Err(nom::Err::Error(err)) => {
+            Err(Error::Nom(nom::error::convert_error(text, err)))
+        }
+        Err(nom::Err::Failure(err)) => {
+            Err(Error::Nom(nom::error::convert_error(text, err)))
+        }
+        _ => panic!(),
+    }
 }
 
-pub fn read_url(url: &str) -> Result<Vec<LeapSec>> {
-    read_bytes(&load_url(url)?)
+pub fn read_url(url: &str) -> anyhow::Result<LeapSecs> {
+    Ok(read_bytes(&load_url(url)?)?)
 }
 
 ////////////////////////////////////////////////////////////////////////
 
+// public for error reporting
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Hash([u32; 5]);
+
 // timestamp, DTAI, date
-type UncheckedLeap = (i64, i64, Gregorian);
+type UncheckedLeap = (i64, i16, Gregorian);
 
 #[derive(Clone, Debug, Default)]
 struct UncheckedList {
@@ -92,7 +60,7 @@ struct UncheckedList {
     pub hash: Hash,
 }
 
-fn save_url(_: anyhow::Error) -> Result<Vec<u8>> {
+fn save_url(_: anyhow::Error) -> anyhow::Result<Vec<u8>> {
     eprintln!("fetching {}", NIST_URL);
     let data = load_url(NIST_URL)?;
     std::fs::write(NIST_FILE, &data)
@@ -100,7 +68,7 @@ fn save_url(_: anyhow::Error) -> Result<Vec<u8>> {
     Ok(data)
 }
 
-fn load_file(name: &str) -> Result<Vec<u8>> {
+fn load_file(name: &str) -> anyhow::Result<Vec<u8>> {
     let ctx = || format!("failed to read {}", name);
     let mut fh = std::fs::File::open(name).with_context(ctx)?;
     let mut data = Vec::new();
@@ -108,14 +76,14 @@ fn load_file(name: &str) -> Result<Vec<u8>> {
     Ok(data)
 }
 
-fn load_url(url: &str) -> Result<Vec<u8>> {
+fn load_url(url: &str) -> anyhow::Result<Vec<u8>> {
     let mut data = Vec::new();
     curl_get(&url, &mut data)
         .with_context(|| format!("failed to fetch {}", &url))?;
     Ok(data)
 }
 
-fn curl_get(url: &str, buffer: &mut Vec<u8>) -> Result<()> {
+fn curl_get(url: &str, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
     let mut ua = curl::easy::Easy::new();
     ua.useragent(&format!(
         "leapsecs/0 curl/{}",

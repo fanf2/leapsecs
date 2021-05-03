@@ -1,3 +1,10 @@
+use thiserror::Error;
+
+use crate::date::*;
+use crate::nist::Hash;
+
+pub use crate::from::LeapSecs;
+
 // https://www.ucolick.org/~sla/leapsecs/dutc.html
 //
 // Before the year 4000 we expect there will be more than one leap
@@ -30,4 +37,60 @@ impl LeapSec {
             Self::Exp { .. } => panic!(),
         }
     }
+    pub fn zero() -> Self {
+        Self::Zero { mjd: i32::from(Gregorian(1972, 1, 1)), dtai: 10 }
+    }
+}
+
+impl std::fmt::Display for LeapSec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            LeapSec::Zero { mjd, dtai } => {
+                write!(f, "{}    DTAI {}", MJD(mjd), dtai)
+            }
+            LeapSec::Neg { mjd, dtai } => {
+                write!(f, "{} -1 DTAI {}", MJD(mjd), dtai)
+            }
+            LeapSec::Pos { mjd, dtai } => {
+                write!(f, "{} +1 DTAI {}", MJD(mjd), dtai)
+            }
+            LeapSec::Exp { mjd } => write!(f, "{} ??", MJD(mjd)),
+        }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("checksum failed {0} <> {1} data {2}")]
+    Checksum(Hash, Hash, String),
+    #[error("leap seconds list is empty")]
+    Empty(),
+    #[error("leap seconds list has expired ({0})")]
+    Expired(LeapSec),
+    #[error("incorrect starting point {0}")]
+    FalseStart(LeapSec),
+    #[error("format error {0}")]
+    Format(#[from] std::fmt::Error),
+    #[error("expected {0}, found {1}")]
+    FromStr(&'static str, char),
+    #[error("time is not midnight ({0})")]
+    Midnight(NTP),
+    #[error("date is not first of month ({0})")]
+    MonthFirst(MJD),
+    #[error("parse error {0}")]
+    Nom(String),
+    #[error("leap seconds are disordered ({0} > {1})")]
+    OutOfOrder(LeapSec, LeapSec),
+    #[error("DTAI {0} is too large ({1})")]
+    Spinny(i64, NTP),
+    #[error("timestamp and date do not match ({0} <> {1})")]
+    TimeDate(NTP, Gregorian),
+    #[error("{0}")]
+    Unicode(#[from] std::str::Utf8Error),
+    #[error("leap is not -1 ({0} -> {1})")]
+    WrongNeg(LeapSec, LeapSec),
+    #[error("leap is not +1 ({0} -> {1})")]
+    WrongPos(LeapSec, LeapSec),
 }

@@ -1,27 +1,22 @@
-use super::{Hash, UncheckedLeap, UncheckedList};
-use crate::date::*;
-
 use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::sequence::*;
-use std::str::FromStr;
 
-type Result<'a, O> = nom::IResult<&'a str, O, nom::error::Error<&'a str>>;
+use super::{Hash, UncheckedLeap, UncheckedList};
+use crate::date::*;
 
-fn dec64(input: &str) -> Result<i64> {
-    map_res(digit1, i64::from_str)(input)
+type Result<'a, O> =
+    nom::IResult<&'a str, O, nom::error::VerboseError<&'a str>>;
+
+fn decimal<T: std::str::FromStr>(input: &str) -> Result<T> {
+    map_res(digit1, T::from_str)(input)
 }
 
-fn hex32(input: &str) -> Result<u32> {
-    map_res(hex_digit1, |s| u32::from_str_radix(s, 16))(input)
-}
-
-// work around nom bug: fill(Fn) should be fill(FnMut)
-fn space_hex32(input: &str) -> Result<u32> {
-    preceded(space1, hex32)(input)
+fn hexword(input: &str) -> Result<u32> {
+    preceded(space1, map_res(hex_digit1, |s| u32::from_str_radix(s, 16)))(input)
 }
 
 fn month(input: &str) -> Result<i32> {
@@ -44,11 +39,11 @@ fn month(input: &str) -> Result<i32> {
 fn date(input: &str) -> Result<Gregorian> {
     map(
         tuple((
-            preceded(space1, dec64),
+            preceded(space1, decimal),
             preceded(space1, month),
-            preceded(space1, dec64),
+            preceded(space1, decimal),
         )),
-        |(d, m, y)| Gregorian(y as i32, m, d as i32),
+        |(d, m, y)| Gregorian(y, m, d),
     )(input)
 }
 
@@ -65,17 +60,17 @@ fn ignore(input: &str) -> Result<()> {
 }
 
 fn updated(input: &str) -> Result<i64> {
-    delimited(pair(tag("#$"), space1), dec64, line_ending)(input)
+    delimited(pair(tag("#$"), space1), decimal, line_ending)(input)
 }
 
 fn expires(input: &str) -> Result<i64> {
-    delimited(pair(tag("#@"), space1), dec64, line_ending)(input)
+    delimited(pair(tag("#@"), space1), decimal, line_ending)(input)
 }
 
 fn leapsecs(input: &str) -> Result<Vec<UncheckedLeap>> {
     many1(tuple((
-        terminated(dec64, space1),
-        terminated(dec64, space1),
+        terminated(decimal, space1),
+        terminated(decimal, space1),
         delimited(tag("#"), date, line_ending),
     )))(input)
 }
@@ -83,7 +78,7 @@ fn leapsecs(input: &str) -> Result<Vec<UncheckedLeap>> {
 fn hash(input: &str) -> Result<Hash> {
     let mut hash: Hash = Default::default();
     let (rest, ()) =
-        delimited(tag("#h"), fill(space_hex32, &mut hash), line_ending)(input)?;
+        delimited(tag("#h"), fill(hexword, &mut hash.0), line_ending)(input)?;
     Ok((rest, hash))
 }
 
