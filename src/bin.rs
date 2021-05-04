@@ -105,8 +105,7 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
         let mut nibbles = Nibble { inner: &mut bytes, byte: None };
         let codes = Expand(&mut nibbles);
         let mut flabby = codes.map(interpret);
-        let gappy: Vec<Gap> = Combine(&mut flabby).collect();
-        let gaps: &[Gap] = &gappy;
+        let gaps: Vec<Gap> = Combine(&mut flabby).collect();
         LeapSecs::try_from(gaps)
     }
 }

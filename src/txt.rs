@@ -1,52 +1,52 @@
 use std::convert::TryFrom;
 
 use crate::date::*;
+use crate::gaps::*;
 use crate::leapsecs::*;
 
 impl std::str::FromStr for LeapSecs {
     type Err = Error;
     fn from_str(s: &str) -> Result<LeapSecs> {
-        let mut list = vec![LeapSec::zero()];
-        let mut month = mjd2month(list[0].mjd())?;
-        let mut dtai = list[0].dtai();
-        let (mut digits, mut gap) = (0, 0);
+        enum What {
+            Zero,
+            Digit(i32),
+            Sign(Leap),
+            Other,
+        }
+        use What::*;
+        let mut gaps = Vec::new();
+        let mut digits = 0;
+        let mut gap = 0;
         for c in s.chars() {
-            match (digits, c) {
-                (0, '1'..='9') => {
-                    digits = 1;
-                    gap = c.to_digit(10).unwrap() as i32;
-                }
-                (1..=2, '0'..='9') => {
+            let what = match c {
+                '0' => Zero,
+                '1'..='9' => Digit(c.to_digit(10).unwrap() as i32),
+                '-' => Sign(Leap::Neg),
+                '+' => Sign(Leap::Pos),
+                '?' => Sign(Leap::Exp),
+                _ => Other,
+            };
+            match (digits, what) {
+                (0..=2, Digit(n)) => {
                     digits += 1;
-                    gap = gap * 10 + c.to_digit(10).unwrap() as i32;
+                    gap = gap * 10 + n;
                 }
-                (1..=3, '-') => {
-                    month += gap;
-                    dtai -= 1;
-                    list.push(LeapSec::month_neg(month, dtai));
-                    digits = 0;
-                    gap = 0;
+                (1..=2, Zero) => {
+                    digits += 1;
+                    gap *= 10;
                 }
-                (1..=3, '+') => {
-                    month += gap;
-                    dtai += 1;
-                    list.push(LeapSec::month_pos(month, dtai));
-                    digits = 0;
-                    gap = 0;
-                }
-                (1..=3, '?') => {
-                    month += gap;
-                    list.push(LeapSec::month_exp(month));
+                (1..=3, Sign(leap)) => {
+                    gaps.push(Gap(gap, leap));
                     digits = 0;
                     gap = 0;
                 }
                 (0, _) => return Err(Error::FromStr("[1-9]", c)),
                 (1..=2, _) => return Err(Error::FromStr("[0-9?+-]", c)),
                 (3, _) => return Err(Error::FromStr("[?+-]", c)),
-                _ => panic!(),
-            }
+                _ => panic!(), // screwed up counting digits
+            };
         }
-        LeapSecs::try_from(list)
+        LeapSecs::try_from(gaps)
     }
 }
 

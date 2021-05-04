@@ -47,19 +47,6 @@ impl LeapSec {
     pub fn zero() -> Self {
         Self::Zero { mjd: i32::from(Gregorian(1972, 1, 1)), dtai: 10 }
     }
-    pub(crate) fn month_zero(month: i32, dtai: i16) -> Self {
-        LeapSec::Zero { mjd: month2mjd(month), dtai }
-    }
-    pub(crate) fn month_neg(month: i32, dtai: i16) -> Self {
-        LeapSec::Neg { mjd: month2mjd(month), dtai }
-    }
-    pub(crate) fn month_pos(month: i32, dtai: i16) -> Self {
-        LeapSec::Pos { mjd: month2mjd(month), dtai }
-    }
-    pub(crate) fn month_exp(month: i32) -> Self {
-        // NIST expiry date is 28th of the month
-        LeapSec::Exp { mjd: month2mjd(month) + 27 }
-    }
 }
 
 impl std::fmt::Display for LeapSec {

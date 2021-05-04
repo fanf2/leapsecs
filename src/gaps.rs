@@ -3,9 +3,9 @@ use crate::leapsecs::*;
 
 pub(crate) struct Gap(pub i32, pub Leap);
 
-impl std::convert::TryFrom<&[Gap]> for LeapSecs {
+impl std::convert::TryFrom<Vec<Gap>> for LeapSecs {
     type Error = Error;
-    fn try_from(gaps: &[Gap]) -> Result<LeapSecs> {
+    fn try_from(gaps: Vec<Gap>) -> Result<LeapSecs> {
         let mut list = vec![LeapSec::zero()];
         let mut month = mjd2month(list[0].mjd())?;
         let mut dtai = list[0].dtai();
@@ -25,7 +25,8 @@ impl std::convert::TryFrom<&[Gap]> for LeapSecs {
                     list.push(LeapSec::Pos { mjd, dtai });
                 }
                 Leap::Exp => {
-                    list.push(LeapSec::Exp { mjd });
+                    // NIST expiry date is 28th of the month
+                    list.push(LeapSec::Exp { mjd: mjd + 27 });
                 }
             }
         }
