@@ -46,6 +46,9 @@ impl std::str::FromStr for LeapSecs {
                 _ => panic!(), // screwed up counting digits
             };
         }
+        if digits != 0 {
+            gaps.push(Gap(gap, Leap::Zero));
+        }
         LeapSecs::try_from(gaps)
     }
 }
