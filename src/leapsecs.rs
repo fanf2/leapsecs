@@ -3,6 +3,13 @@ use thiserror::Error;
 use crate::date::*;
 use crate::nist::Hash;
 
+pub enum Leap {
+    Zero,
+    Neg,
+    Pos,
+    Exp,
+}
+
 pub use crate::from::LeapSecs;
 
 // https://www.ucolick.org/~sla/leapsecs/dutc.html

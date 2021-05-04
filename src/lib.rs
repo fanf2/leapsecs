@@ -5,4 +5,6 @@ pub mod leapsecs;
 pub mod nist;
 pub mod txt;
 
+mod gaps;
+
 pub use crate::leapsecs::*;

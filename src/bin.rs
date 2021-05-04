@@ -1,4 +1,4 @@
-use crate::date::*;
+use crate::gaps::*;
 use crate::leapsecs::*;
 
 const WIDE: u8 = 0x80;
@@ -9,13 +9,6 @@ const LOW: u8 = 0x0F;
 
 fn single(nibble: u8) -> bool {
     nibble < (WIDE >> 4)
-}
-
-enum Leap {
-    Zero(i32),
-    Neg(i32),
-    Pos(i32),
-    Exp(i32),
 }
 
 // iterate over bytes one nibble at a time
@@ -65,16 +58,16 @@ where
     }
 }
 
-fn interpret(code: u8) -> Leap {
+fn interpret(code: u8) -> Gap {
     // wide flag must have been set by expand iterator
     assert!(code & WIDE != 0);
     let mul = if code & MONTH != 0 { 1 } else { 6 };
     let gap = (((code & LOW) + 1) * mul) as i32;
     match code & (NEG | POS) {
-        NEG => Leap::Neg(gap),
-        POS => Leap::Pos(gap),
-        0 => Leap::Zero(gap),
-        _ => Leap::Exp(gap),
+        NEG => Gap(gap, Leap::Neg),
+        POS => Gap(gap, Leap::Pos),
+        0 => Gap(gap, Leap::Zero),
+        _ => Gap(gap, Leap::Exp),
     }
 }
 
@@ -84,24 +77,22 @@ struct Combine<'a, T>(&'a mut T);
 
 impl<'a, T> Iterator for Combine<'a, T>
 where
-    T: Iterator<Item = Leap>,
+    T: Iterator<Item = Gap>,
 {
-    type Item = Leap;
+    type Item = Gap;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut zero = 0;
+        let mut total = 0;
         loop {
             match self.0.next() {
                 None => {
-                    if zero != 0 {
-                        return Some(Leap::Zero(zero));
+                    if total != 0 {
+                        return Some(Gap(total, Leap::Zero));
                     } else {
                         return None;
                     }
                 }
-                Some(Leap::Neg(gap)) => return Some(Leap::Neg(zero + gap)),
-                Some(Leap::Pos(gap)) => return Some(Leap::Pos(zero + gap)),
-                Some(Leap::Exp(gap)) => return Some(Leap::Exp(zero + gap)),
-                Some(Leap::Zero(gap)) => zero += gap,
+                Some(Gap(inc, Leap::Zero)) => total += inc,
+                Some(Gap(inc, leap)) => return Some(Gap(total + inc, leap)),
             }
         }
     }
@@ -113,35 +104,10 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
         let mut bytes = slice.iter();
         let mut nibbles = Nibble { inner: &mut bytes, byte: None };
         let codes = Expand(&mut nibbles);
-        let mut gappy = codes.map(interpret);
-        let leaps = Combine(&mut gappy);
-        let mut list = vec![LeapSec::zero()];
-        let mut month = mjd2month(list[0].mjd())?;
-        let mut dtai = list[0].dtai();
-        for leap in leaps {
-            match leap {
-                Leap::Zero(gap) => {
-                    month += gap;
-                    list.push(LeapSec::month_zero(month, dtai));
-                }
-                Leap::Neg(gap) => {
-                    month += gap;
-                    dtai -= 1;
-                    list.push(LeapSec::month_neg(month, dtai));
-                }
-                Leap::Pos(gap) => {
-                    month += gap;
-                    dtai += 1;
-                    list.push(LeapSec::month_pos(month, dtai));
-                }
-                Leap::Exp(gap) => {
-                    month += gap;
-                    list.push(LeapSec::month_exp(month));
-                }
-            }
-        }
-        list.iter().for_each(|leap| eprintln!("{}", MJD(leap.mjd())));
-        LeapSecs::try_from(list)
+        let mut flabby = codes.map(interpret);
+        let gappy: Vec<Gap> = Combine(&mut flabby).collect();
+        let gaps: &[Gap] = &gappy;
+        LeapSecs::try_from(gaps)
     }
 }
 

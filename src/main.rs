@@ -4,6 +4,7 @@ use anyhow::*;
 mod bin;
 mod date;
 mod from;
+mod gaps;
 mod leapsecs;
 mod nist;
 mod txt;
