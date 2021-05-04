@@ -1,7 +1,8 @@
 Compact formats for the Leap Second list
 ========================================
 
-_Tony Finch_
+_Tony Finch_ `dot@dotat.at`
+
 _May 2021_
 
 
