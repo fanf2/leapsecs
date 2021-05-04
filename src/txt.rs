@@ -36,7 +36,8 @@ impl std::str::FromStr for LeapSecs {
                 }
                 (1..=4, '?') => {
                     month += gap;
-                    list.push(LeapSec::Exp { mjd: month2mjd(month) });
+                    // NIST expiry date is 28th of the month
+                    list.push(LeapSec::Exp { mjd: month2mjd(month) + 27 });
                     digits = 0;
                     gap = 0;
                 }
@@ -65,5 +66,20 @@ impl std::fmt::Display for LeapSecs {
             prev = next;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::leapsecs::*;
+    use crate::nist;
+    use std::str::FromStr;
+
+    #[test]
+    fn test() {
+        let original = nist::read().expect("get leap-seconds.list");
+        let output = format!("{}", original);
+        let parsed = LeapSecs::from_str(&output).unwrap();
+        assert_eq!(original, parsed);
     }
 }
