@@ -1,7 +1,7 @@
 Compact formats for the Leap Second list
 ========================================
 
-warning: work in progress
+_warning: work in progress_
 
 The goal is to make it really easy to distribute the list of leap
 seconds, by making the list really small and easy to read and write.
