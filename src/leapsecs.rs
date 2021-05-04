@@ -96,8 +96,6 @@ pub enum Error {
     Nom(String),
     #[error("leap seconds are disordered ({0} > {1})")]
     OutOfOrder(LeapSec, LeapSec),
-    #[error("DTAI {0} is too large ({1})")]
-    Spinny(i64, NTP),
     #[error("timestamp and date do not match ({0} <> {1})")]
     TimeDate(NTP, Gregorian),
     #[error("{0}")]
