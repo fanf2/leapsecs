@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use anyhow::*;
 
+mod bin;
 mod date;
 mod from;
 mod leapsecs;

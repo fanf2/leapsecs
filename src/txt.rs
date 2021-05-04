@@ -16,34 +16,33 @@ impl std::str::FromStr for LeapSecs {
                     digits = 1;
                     gap = c.to_digit(10).unwrap() as i32;
                 }
-                (1..=3, '0'..='9') => {
+                (1..=2, '0'..='9') => {
                     digits += 1;
                     gap = gap * 10 + c.to_digit(10).unwrap() as i32;
                 }
-                (1..=4, '-') => {
+                (1..=3, '-') => {
                     month += gap;
                     dtai -= 1;
-                    list.push(LeapSec::Neg { mjd: month2mjd(month), dtai });
+                    list.push(LeapSec::month_neg(month, dtai));
                     digits = 0;
                     gap = 0;
                 }
-                (1..=4, '+') => {
+                (1..=3, '+') => {
                     month += gap;
                     dtai += 1;
-                    list.push(LeapSec::Pos { mjd: month2mjd(month), dtai });
+                    list.push(LeapSec::month_pos(month, dtai));
                     digits = 0;
                     gap = 0;
                 }
-                (1..=4, '?') => {
+                (1..=3, '?') => {
                     month += gap;
-                    // NIST expiry date is 28th of the month
-                    list.push(LeapSec::Exp { mjd: month2mjd(month) + 27 });
+                    list.push(LeapSec::month_exp(month));
                     digits = 0;
                     gap = 0;
                 }
                 (0, _) => return Err(Error::FromStr("[1-9]", c)),
-                (1..=3, _) => return Err(Error::FromStr("[0-9?+-]", c)),
-                (4, _) => return Err(Error::FromStr("[?+-]", c)),
+                (1..=2, _) => return Err(Error::FromStr("[0-9?+-]", c)),
+                (3, _) => return Err(Error::FromStr("[?+-]", c)),
                 _ => panic!(),
             }
         }
@@ -70,7 +69,7 @@ impl std::fmt::Display for LeapSecs {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::leapsecs::*;
     use crate::nist;
     use std::str::FromStr;
@@ -81,5 +80,9 @@ mod tests {
         let output = format!("{}", original);
         let parsed = LeapSecs::from_str(&output).unwrap();
         assert_eq!(original, parsed);
+        let input = "9+9-99+99-999+999?";
+        let parsed = LeapSecs::from_str(&input).unwrap();
+        let output = format!("{}", parsed);
+        assert_eq!(input, output);
     }
 }

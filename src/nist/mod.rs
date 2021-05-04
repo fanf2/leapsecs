@@ -103,7 +103,7 @@ fn curl_get(url: &str, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
 ////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::date;
     use crate::nist;
 

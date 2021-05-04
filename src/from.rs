@@ -6,12 +6,6 @@ use crate::leapsecs::*;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LeapSecs(Vec<LeapSec>);
 
-impl From<LeapSecs> for Vec<LeapSec> {
-    fn from(s: LeapSecs) -> Vec<LeapSec> {
-        s.0
-    }
-}
-
 impl<'a> From<&'a LeapSecs> for &'a [LeapSec] {
     fn from(s: &'a LeapSecs) -> &'a [LeapSec] {
         &s.0
@@ -23,7 +17,7 @@ impl TryFrom<Vec<LeapSec>> for LeapSecs {
 
     fn try_from(list: Vec<LeapSec>) -> Result<LeapSecs> {
         if list.len() < 2 {
-            return Err(Error::Empty());
+            return Err(Error::Empty);
         }
         let last = list.len() - 1;
         let mut prev = LeapSec::zero();
