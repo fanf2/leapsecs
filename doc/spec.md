@@ -162,17 +162,17 @@ The binary format is based on bytecodes. The upper half of each
 bytecode contains flags, and the lower half contains the length of a
 gap.
 
-          7   6   5   4   3        0
-        +---+---+---+---+------------+
-        | W | M | N | P |    GGGG    |
-        +---+---+---+---+------------+
+          7   6   5   4   3       0
+        +---+---+---+---+-----------+
+        | W | M | N | P |  G G G G  |
+        +---+---+---+---+-----------+
 
   * GGGG (gap) is a 4 bit number. The actual length of the gap in
     months is derived from GGGG and M as follows:
 
-    if m == 1 then gap = (GGGG + 1)
+    if M == 1 then gap = (GGGG + 1)
 
-    if m == 0 then gap = (GGGG + 1) * 6
+    if M == 0 then gap = (GGGG + 1) * 6
 
   * NP (leap) are NTP-compatible leap indicator bits.
 
@@ -207,7 +207,7 @@ half of each byte comes before the lower half in the sequence.
 
 Nibbles are expanded to bytecodes as follows:
 
-  * If the value of the next nibble is less than 8
+  * If the value of the next nibble is less than 8 (W is clear)
 
     the bits of the nibble look like 0GGG
 
@@ -219,7 +219,7 @@ Nibbles are expanded to bytecodes as follows:
     Thus a single nibble encodes the common case of a gap counted in
     units of six months with a positive leap second at the end.
 
-  * If the value of the next nibble is 8 or more
+  * If the value of the next nibble is 8 or more (W is set)
 
     the bits of the nibble look like 1MNP
 
@@ -229,10 +229,10 @@ Nibbles are expanded to bytecodes as follows:
     1MNP flags can be in the lower half of one byte and the GGGG gap
     can be in the upper half of the next byte.
 
-  * If the value of the last nibble is 8 or more, so there is no
-    nibble to use as the lower half of the bytecode
+  * If the value of the last nibble is 8 or more (W is set), and so
+    there is no nibble to use as the lower half of the bytecode
 
-    one nibble is consumed and expanded into 1MNP0100
+    the last nibble is consumed and expanded into 1MNP0100
 
     This abbreviates a common case at the end of the list, in which
     WMNP == 1111 with a gap of 5 months up to the list's expiry time.
@@ -251,8 +251,8 @@ terminated by an NP != 00 bytesode.
 == 1000, GGGG == 15, representing a gap of 16*6 months, followed by
 any remainder. A 999 month gap requires ten 0x8F bytecodes (960
 months) followed by 0x82 (36 months) and 0xF2 for the last 3 months.
-This is not very efficient, which is why gaps are limited to 999
-months.)
+This O(N) encoding is not very efficient, which is why gaps are
+limited to 999 months.)
 
 
 ### encoding gaps
