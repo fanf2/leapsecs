@@ -1,5 +1,5 @@
 use crate::gaps::*;
-use crate::leapsecs::*;
+use crate::types::*;
 
 const WIDE: u8 = 0x80;
 const MONTH: u8 = 0x40;
@@ -110,7 +110,7 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
 
 #[cfg(test)]
 mod test {
-    use crate::leapsecs::*;
+    use crate::types::*;
     use std::convert::TryFrom;
 
     #[test]

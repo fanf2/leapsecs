@@ -1,4 +1,4 @@
-use crate::leapsecs::{Error, Result};
+use crate::types::*;
 
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Gregorian(pub i32, pub i32, pub i32);

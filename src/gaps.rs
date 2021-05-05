@@ -1,5 +1,5 @@
 use crate::date::*;
-use crate::leapsecs::*;
+use crate::types::*;
 
 pub(crate) struct Gap(pub i32, pub Leap);
 

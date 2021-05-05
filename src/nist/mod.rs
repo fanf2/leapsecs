@@ -4,7 +4,7 @@ use anyhow::Context;
 use std::io::Read;
 
 use crate::date::*;
-use crate::leapsecs::*;
+use crate::types::*;
 
 mod fmt;
 mod parse;

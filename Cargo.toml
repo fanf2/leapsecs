@@ -4,11 +4,6 @@ version = "0.0.0"
 authors = ["Tony Finch <dot@dotat.at>"]
 edition = "2018"
 
-# tests are run for the binary target
-# dunno if there's a better way to make them run once
-[lib]
-test = false
-
 [profile.dev]
 opt-level = 2
 

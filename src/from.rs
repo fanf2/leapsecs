@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use crate::date::*;
-use crate::leapsecs::*;
+use crate::types::*;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LeapSecs(Vec<LeapSec>);

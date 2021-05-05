@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::date::*;
 use crate::gaps::*;
-use crate::leapsecs::*;
+use crate::types::*;
 
 impl std::str::FromStr for LeapSecs {
     type Err = Error;
@@ -73,8 +73,8 @@ impl std::fmt::Display for LeapSecs {
 
 #[cfg(test)]
 mod test {
-    use crate::leapsecs::*;
     use crate::nist;
+    use crate::types::*;
     use std::str::FromStr;
 
     #[test]
