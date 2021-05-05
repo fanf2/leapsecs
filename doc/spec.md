@@ -229,8 +229,9 @@ Nibbles are expanded to bytecodes as follows:
     1MNP flags can be in the lower half of one byte and the GGGG gap
     can be in the upper half of the next byte.
 
-  * If the value of the last nibble is 8 or more (W is set), and so
-    there is no nibble to use as the lower half of the bytecode
+  * If the next nibble is the last nibble, and its value is 8 or more
+    (W is set), there is no nibble to use as the lower half of the
+    bytecode
 
     the last nibble is consumed and expanded into 1MNP0100
 
@@ -240,7 +241,7 @@ Nibbles are expanded to bytecodes as follows:
 
 ### restrictions
 
-An NP === 11 bytecode must occur at the end of the list, and must not
+An NP == 11 bytecode must occur at the end of the list, and must not
 occur anywhere else.
 
 The total length of a gap between leap seconds must be no more than
