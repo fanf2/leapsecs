@@ -1,4 +1,4 @@
-Compact formats for the Leap Second list
+Compact formats for the leap second list
 ========================================
 
 _warning: work in progress_

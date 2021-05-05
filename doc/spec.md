@@ -36,7 +36,9 @@ or December. (So far there have been no leap seconds in other months.)
 
 ### existing formats
 
-Leap second tables are distributed by the [IERS][] and [NIST][]. They
+Leap second tables are distributed by the [IERS][] and
+[NIST][NIST-IETF]. (The NIST table is made available via FTP, and
+republished by the IETF and with the Olson / IANA tz database.) They
 use different formats, but they contain similar information.
 
 Each leap second is indicated by the date immediately following, i.e.
@@ -53,7 +55,8 @@ seconds. That was the start of UTC rather than a leap second.
 The tables also include an expiry date.
 
 [IERS]: https://hpiers.obspm.fr/eoppc/bul/bulc/Leap_Second.dat
-[NIST]: ftp://time.nist.gov/pub/leap-seconds.list
+[NIST-IETF]: https://www.ietf.org/timezones/data/leap-seconds.list
+[NIST-FTP]: ftp://time.nist.gov/pub/leap-seconds.list
 
 
 ### publication and expiry
@@ -62,9 +65,10 @@ The usual practice is the IERS will issue [Bulletin C][BulC] in
 January and July each year, to announce whether or not there will be a
 leap second at the end of June or December (respectively).
 
-The [IERS][] and [NIST][] leap second tables are updated soon after.
-January issues have expiry dates of 28th December the same year, and
-July issues have an expiry date of 28th June the following year.
+The [IERS][] and [NIST][NIST-IETF] leap second tables are updated soon
+after. January issues have expiry dates of 28th December the same
+year, and July issues have an expiry date of 28th June the following
+year.
 
 So the validity period for the leap second tables is roughly 11
 months.
