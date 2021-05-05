@@ -1,4 +1,4 @@
-Compact formats for the Leap Second list
+Compact formats for the leap second list
 ========================================
 
 _Tony Finch_ `dot@dotat.at`
@@ -114,7 +114,7 @@ The [ABNF][] for the text format is:
 
             end         = gap "?"
 
-            gap         = nonzero *2digit
+            gap         = nonzero 0*2digit
 
             digit       = "0" / nonzero
 
@@ -140,4 +140,154 @@ second by a '+'.
 The last number is the number of months between the last leap second
 and the expiry of the list, rounded down to a whole number of months.
 The list is terminated with a '?' expiry indicator.
+
+
+binary format
+-------------
+
+Here is an example of the compact binary format. It lists the 27 leap
+seconds up to the time of writing in May 2021. It is shown as a hex
+dump.
+
+        00111111 12113431 2112229D 565287FA
+
+### bytecodes
+
+The binary format is based on bytecodes. The upper half of each
+bytecode contains flags, and the lower half contains the length of a
+gap.
+
+          7   6   5   4   3        0
+        +---+---+---+---+------------+
+        | W | M | N | P |    GGGG    |
+        +---+---+---+---+------------+
+
+  * GGGG (gap) is a 4 bit number. The actual length of the gap in
+    months is derived from GGGG and M as follows:
+
+    if m == 1 then gap = (GGGG + 1)
+    if m == 0 then gap = (GGGG + 1) * 6
+
+  * NP (leap) are NTP-compatible leap indicator bits.
+
+  * N == 0, P == 1 indicates there is a positive leap second at the
+    end of the gap. (Like "+" in the text format.)
+
+  * N == 1, P == 0 indicates there is a negaive leap second at the
+    end of the gap. (Like "-" in the text format.)
+
+  * N == 1, P == 1 indicates that it is unknown whether there is a
+    leap second at the end of the gap. This represents the expiry time
+    at the end of the list (like "?" in the text format).
+
+  * N == 0, P == 0 indicates that there is no leap second at the end
+    of the gap. This is used when the entire gap between leap seconds
+    cannot be represented in a single bytecode.
+
+  * M (months) indicates whether the gap is counted in units of one
+    month (M == 1) or six months (M == 0).
+
+    This uses the [TF.460-6][] preference for leap seconds at the end
+    of December or June to encode the list more compactly.
+
+  * W (wide) indicates whether the bytecode is represented in full as
+    two nibbles (W == 1) or abbreviated as one nibble (W == 0).
+
+### nibbles
+
+The binary format is read as a sequence of 4-bit nibbles. The upper
+half of each byte comes before the lower half in the sequence.
+
+Nibbles are expanded to bytecodes as follows:
+
+  * If the value of the next nibble is less than 8
+
+    the bits of the nibble look like 0GGG
+
+    one nibble is consumed and expanded into 00010GGG
+
+    that is, the value of the bytecode is the value of the nibble
+    plus 0x10
+
+    Thus a single nibble encodes the common case of a gap counted in
+    units of six months with a positive leap second at the end.
+
+  * If the value of the next nibble is 8 or more
+
+    the bits of the nibble look like 1MNP
+
+    two nibbles are consumed to form the bytecode 1MNPGGGG
+
+    Note that a wide bytecode does not have to be byte-aligned, so the
+    1MNP flags can be in the lower half of one byte and the GGGG gap
+    can be in the upper half of the next byte.
+
+  * If the value of the last nibble is 8 or more
+
+    so there is no nibble to use as the lower half of the bytecode
+
+    one nibble is consumed and expanded into 1MNP0100
+
+    This abbreviates a common case at the end of the list, in which
+    WMNP == 1111 with a gap of 5 months up to the list's expiry time.
+
+### restrictions
+
+An NP === 11 bytecode must occur at the end of the list, and must not
+occur anywhere else.
+
+The total length of a gap between leap seconds must be no more than
+999 months. The total gap comprises a sequence of NP == 00 bytecodes
+terminated by an NP != 00 bytesode.
+
+(Very long gaps are represented as a sequence of 0x8F bytecodes, WMNP
+== 1000, GGGG == 1111, representing a gap of 16*6 months, followed by
+any remainder. A 999 month gap requires ten 0x8F bytecodes (960
+months) followed by 0x82 (36 months) and 0xF2 for the last 3 months.
+This is not very efficient, which is why gaps are limited to 999
+months.)
+
+### encoding gaps
+
+The recommendations in this section should be followed by software
+that generates binary leap second lists, but should not be checked by
+software that reads binary leap second lists.
+
+Gaps that are a multiple of 6 months long should be encoded as a
+number of `16*6` month gaps, followed by the remainder.
+
+Gaps up to 16 months can be encoded in one bytecode.
+
+Other gaps should be encoded as an `X*6` month gap covering a whole
+number of years, followed by a gap for the remaining few months.
+
+If the binary list would end up as an odd number of nibbles, it can be
+rounded to a whole number of bytes in two ways:
+
+  * If the final gap is 5 months or more, use 0xF4 as the terminating
+    bytecode, preceded by any bytecodes needed for the rest of the
+    gap; the final 0x4 nibble can be omitted.
+
+  * Otherwise, the last single-nibble bytecode can be expanded to a
+    wide bytecode by inserting a flags nibble WMNP = 1001 (0x9).
+
+### example
+
+In the example, most leap seconds are represented as a single nibble.
+For instance, `1` represents a year between positive leap seconds.
+
+        00111111 12113431 2112229D 565287FA
+
+There is one long gap between leap seconds, represented as 0x9D. This
+is the 7 year period between the December 1998 and December 2005 leap
+seconds. WMNP == 1001, GGGG = 13, so this bytecode represents a
+positive leap second at the end of a 14 * 6 month gap.
+
+The list ends with 0x87FA. This is:
+
+  * WMNP == 1000, GGGG = 7, representing a gap of 8*6 months with no
+    leap second.
+
+  * WMNP == 1111, GGGG = 10, representing another 11 months of gap
+    after which the list expires.
 

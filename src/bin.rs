@@ -49,9 +49,9 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {
             None => None,
-            Some(lo) if single(lo) => Some(WIDE | POS | lo),
+            Some(lo) if single(lo) => Some(POS | lo),
             Some(hi) => match self.0.next() {
-                None => Some(hi << 4),
+                None => Some(hi << 4 | 4),
                 Some(lo) => Some(hi << 4 | lo),
             },
         }
@@ -59,8 +59,6 @@ where
 }
 
 fn interpret(code: u8) -> Gap {
-    // wide flag must have been set by expand iterator
-    assert!(code & WIDE != 0);
     let mul = if code & MONTH != 0 { 1 } else { 6 };
     let gap = (((code & LOW) + 1) * mul) as i32;
     match code & (NEG | POS) {
