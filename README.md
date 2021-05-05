@@ -41,6 +41,13 @@ writing the leap seconds list in various formats, including:
 It is intended to be a reference implementation.
 
 
+spec
+----
+
+The specification for the compact leap second list text and binary
+formats can be found in [doc/spec.md](doc/spec.md).
+
+
 licence
 -------
 
