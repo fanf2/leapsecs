@@ -1,7 +1,7 @@
 Compact formats for the leap second list
 ========================================
 
-<img src="doc/logo.png" width="50%" style="float: right;" >
+<img src="doc/logo.png" width="50%" align="right" >
 
 _warning: work in progress_
 
