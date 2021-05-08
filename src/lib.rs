@@ -210,10 +210,11 @@ impl LeapSecBuilder {
         LeapSecBuilder(Vec::new())
     }
 
-    pub fn finish(self) -> Result<LeapSecs> {
+    pub fn finish(mut self) -> Result<LeapSecs> {
         if self.0.is_empty() || self.0.last().unwrap().sign != Exp {
             Err(Error::Truncated)
         } else {
+            self.0.shrink_to_fit();
             Ok(LeapSecs(self.0))
         }
     }
