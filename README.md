@@ -1,6 +1,8 @@
 Compact formats for the leap second list
 ========================================
 
+<img src="doc/logo.png" width=240 height=135>
+
 _warning: work in progress_
 
 The goal is to make it really easy to distribute the list of leap
