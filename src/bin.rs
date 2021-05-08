@@ -1,5 +1,4 @@
-use crate::gaps::*;
-use crate::types::*;
+use crate::*;
 
 const WIDE: u8 = 0x80;
 const MONTH: u8 = 0x40;
@@ -7,8 +6,8 @@ const NEG: u8 = 0x20;
 const POS: u8 = 0x10;
 const LOW: u8 = 0x0F;
 
-fn single(nibble: u8) -> bool {
-    nibble < (WIDE >> 4)
+fn wide(nibble: u8) -> bool {
+    nibble << 4 & WIDE != 0
 }
 
 // iterate over bytes one nibble at a time
@@ -49,7 +48,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {
             None => None,
-            Some(lo) if single(lo) => Some(POS | lo),
+            Some(lo) if !wide(lo) => Some(POS | lo),
             Some(hi) => match self.0.next() {
                 None => Some(hi << 4 | 4),
                 Some(lo) => Some(hi << 4 | lo),
@@ -58,59 +57,30 @@ where
     }
 }
 
-fn interpret(code: u8) -> Gap {
-    let mul = if code & MONTH != 0 { 1 } else { 6 };
-    let gap = (((code & LOW) + 1) * mul) as i32;
-    match code & (NEG | POS) {
-        NEG => Gap(gap, Leap::Neg),
-        POS => Gap(gap, Leap::Pos),
-        0 => Gap(gap, Leap::Zero),
-        _ => Gap(gap, Leap::Exp),
-    }
-}
-
-// squeeze out Leap::Zero
-
-struct Combine<'a, T>(&'a mut T);
-
-impl<'a, T> Iterator for Combine<'a, T>
-where
-    T: Iterator<Item = Gap>,
-{
-    type Item = Gap;
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut total = 0;
-        loop {
-            match self.0.next() {
-                None => {
-                    if total != 0 {
-                        return Some(Gap(total, Leap::Zero));
-                    } else {
-                        return None;
-                    }
-                }
-                Some(Gap(inc, Leap::Zero)) => total += inc,
-                Some(Gap(inc, leap)) => return Some(Gap(total + inc, leap)),
-            }
-        }
-    }
-}
-
 impl std::convert::TryFrom<&[u8]> for LeapSecs {
     type Error = Error;
     fn try_from(slice: &[u8]) -> Result<LeapSecs> {
+        let mut list = LeapSecs::builder();
         let mut bytes = slice.iter();
         let mut nibbles = Nibble { inner: &mut bytes, byte: None };
-        let codes = Expand(&mut nibbles);
-        let mut flabby = codes.map(interpret);
-        let gaps: Vec<Gap> = Combine(&mut flabby).collect();
-        LeapSecs::try_from(gaps)
+        for code in Expand(&mut nibbles) {
+            let mul = if code & MONTH != 0 { 1 } else { 6 };
+            let gap = (((code & LOW) + 1) * mul) as i32;
+            let sign = match code & (NEG | POS) {
+                NEG => Leap::Neg,
+                POS => Leap::Pos,
+                0 => Leap::Zero,
+                _ => Leap::Exp,
+            };
+            list.push_gap(gap, sign)?;
+        }
+        list.finish()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::types::*;
+    use crate::*;
     use std::convert::TryFrom;
 
     #[test]

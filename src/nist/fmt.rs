@@ -1,10 +1,10 @@
 use ring::digest::*;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
 
 use super::Hash;
 use crate::date::*;
-use crate::types::*;
+use crate::*;
 
 impl std::fmt::Display for Hash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -13,17 +13,33 @@ impl std::fmt::Display for Hash {
     }
 }
 
-pub fn format(list: &LeapSecs, updated_mjd: i32) -> Result<String> {
-    let list: &[LeapSec] = list.into();
+const NTP_EPOCH: MJD = Gregorian(1900, 1, 1).mjd();
+
+fn ntp_from(mjd: MJD) -> i64 {
+    (mjd - NTP_EPOCH) as i64 * 86400
+}
+
+fn mjd_from(ntp: i64) -> Result<MJD> {
+    let days = i32::try_from(ntp.div_euclid(86400))?;
+    let secs = i32::try_from(ntp.rem_euclid(86400))?;
+    let mjd = NTP_EPOCH + days;
+    if secs != 0 {
+        Err(Error::Midnight(ntp, mjd, secs))
+    } else {
+        Ok(mjd)
+    }
+}
+
+pub fn format(list: &LeapSecs, updated_mjd: MJD) -> Result<String> {
     let mut out = String::new();
-    let expires_mjd = list.last().unwrap().mjd();
+    let expires_mjd = list.expires();
     let updated_date = Gregorian::from(updated_mjd);
     let expires_date = Gregorian::from(expires_mjd);
-    let updated_ntp = mjd2ntp(updated_mjd);
-    let expires_ntp = mjd2ntp(expires_mjd);
+    let updated_ntp = ntp_from(updated_mjd);
+    let expires_ntp = ntp_from(expires_mjd);
     write!(out, "#\tupdated {}\n#$\t{}\n#\n", updated_date, updated_ntp)?;
     write!(out, "#\texpires {}\n#@\t{}\n#\n", expires_date, expires_ntp)?;
-    for leap in list.iter().take(list.len() - 1) {
+    for &leap in list.iter().take(list.len() - 1) {
         let date = Gregorian::from(leap.mjd());
         let month = [
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
@@ -32,8 +48,8 @@ pub fn format(list: &LeapSecs, updated_mjd: i32) -> Result<String> {
         writeln!(
             out,
             "{}\t{}\t# {} {} {}",
-            mjd2ntp(leap.mjd()),
-            leap.dtai(),
+            ntp_from(leap.mjd()),
+            leap.dtai().unwrap(),
             date.day(),
             month,
             date.year()
@@ -44,40 +60,38 @@ pub fn format(list: &LeapSecs, updated_mjd: i32) -> Result<String> {
     Ok(out)
 }
 
-pub(super) fn check(u: super::UncheckedList) -> Result<LeapSecs> {
-    let mut prev = LeapSec::zero().dtai();
-    let mut list = Vec::new();
-    for &(ntp, dtai, date) in u.leapsecs.iter() {
-        let mjd = ntp2mjd(ntp)?;
-        if mjd != i32::from(date) {
-            return Err(Error::TimeDate(NTP(ntp), date));
-        } else if dtai == prev {
-            list.push(LeapSec::Zero { mjd, dtai });
-        } else if dtai < prev {
-            list.push(LeapSec::Neg { mjd, dtai });
-        } else if dtai > prev {
-            list.push(LeapSec::Pos { mjd, dtai });
+impl TryFrom<super::UncheckedList> for LeapSecs {
+    type Error = Error;
+    fn try_from(u: super::UncheckedList) -> Result<LeapSecs> {
+        let mut list = LeapSecs::builder();
+        for (ntp, dtai, date) in u.leapsecs {
+            let mjd = mjd_from(ntp)?;
+            if mjd != MJD::from(date) {
+                return Err(Error::TimeDate(ntp, mjd, date));
+            } else {
+                list.push_date(date, dtai)?
+            }
         }
-        prev = dtai;
-    }
-    let _check = ntp2mjd(u.updated)?;
-    let expires = ntp2mjd(u.expires)?;
-    list.push(LeapSec::Exp { mjd: expires });
-    let hashin = hashin(&list, u.updated)?;
-    let calculated = sha1(&hashin);
-    if u.hash != calculated {
-        Err(Error::Checksum(u.hash, calculated, hashin))
-    } else {
-        list.try_into()
+        let _check = mjd_from(u.updated)?;
+        let expires = mjd_from(u.expires)?;
+        list.push_exp(Gregorian::from(expires))?;
+        let list = list.finish()?;
+        let hashin = hashin(&list, u.updated)?;
+        let calculated = sha1(&hashin);
+        if u.hash != calculated {
+            Err(Error::Checksum(u.hash, calculated, hashin))
+        } else {
+            Ok(list)
+        }
     }
 }
 
-fn hashin(list: &[LeapSec], updated: i64) -> Result<String> {
-    let expires = mjd2ntp(list.last().unwrap().mjd());
+fn hashin(list: &LeapSecs, updated: i64) -> Result<String> {
+    let expires = ntp_from(list.expires());
     let mut hashin = String::new();
     write!(hashin, "{}{}", updated, expires)?;
     for leap in list.iter().take(list.len() - 1) {
-        write!(hashin, "{}{}", mjd2ntp(leap.mjd()), leap.dtai())?;
+        write!(hashin, "{}{}", ntp_from(leap.mjd()), leap.dtai().unwrap())?;
     }
     Ok(hashin)
 }

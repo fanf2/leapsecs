@@ -1,10 +1,10 @@
 // fetch and parse the NIST leap-seconds.list
 
 use anyhow::Context;
+use std::convert::TryInto;
 use std::io::Read;
 
-use crate::date::*;
-use crate::types::*;
+use crate::*;
 
 mod fmt;
 mod parse;
@@ -28,7 +28,7 @@ pub fn read_file(name: &str) -> anyhow::Result<LeapSecs> {
 
 pub fn read_str(text: &str) -> Result<LeapSecs> {
     match parse::parse(&text) {
-        Ok((_, unchecked)) => fmt::check(unchecked),
+        Ok((_, unchecked)) => unchecked.try_into(),
         Err(nom::Err::Error(err)) => {
             Err(Error::Nom(nom::error::convert_error(text, err)))
         }
