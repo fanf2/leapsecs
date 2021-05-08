@@ -273,9 +273,8 @@ number of years, followed by a gap for the remaining few months.
 If the binary list would end up as an odd number of nibbles, it can be
 rounded to a whole number of bytes in two ways:
 
-  * If the final gap is 5 months or more, use 0xF4 as the terminating
-    bytecode, preceded by any bytecodes needed for the rest of the
-    gap; the final 0x4 nibble can be omitted.
+  * If the terminating bytecode is 0xF4, the final 0x4 nibble can be
+    omitted.
 
   * Otherwise, the last single-nibble bytecode can be expanded to a
     wide bytecode by inserting a flags nibble WMNP = 1001 (0x9).
