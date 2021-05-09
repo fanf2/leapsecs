@@ -1,3 +1,26 @@
+//! Compact binary format for the leap second list
+//! ==============================================
+//!
+//! This module implements a number of methods and standard traits for
+//! the [`LeapSecs`][] type:
+//!
+//!   * [`std::convert::TryFrom<&[u8]>`][std::convert::TryFrom] parses a
+//!     leap second list in compact binary format,  returning
+//!     `Result<`[`LeapSecs`][crate::LeapSecs]`, `[`Error`][enum@Error]`>`.
+//!
+//!   * [`From<LeapSecs>`][From] and [`From<&LeapSecs>`][From]` for
+//!     `[`Vec<u8>`][Vec] generate the compact binary format as a
+//!     freshly allocated `Vec`.
+//!
+//!   * [`LeapSecs::iter_bytes()`][] generates the compact binary
+//!     format one byte at a time as an iterator.
+//!
+//!   * [`LeapSecs::len_bytes()`][] returns the lenght of the compact
+//!     binary format.
+//!
+//!   * [`LeapSecs::write_bytes()`][] outputs the compact binary
+//!     format to a [`std::io::Write`][] object, one byte at a time.
+
 use crate::*;
 use std::result::Result;
 
@@ -180,6 +203,8 @@ impl LeapSecs {
         Widecodes { inner: self.iter(), flags: 0, gap: 0 }
     }
 
+    // work out how to round bytecodes to whole number of bytes
+
     fn scan_bytes(&self) -> (usize, usize) {
         let mut len = 0;
         let mut widen = 0;
@@ -203,15 +228,23 @@ impl LeapSecs {
         }
     }
 
+    /// Get the length of the compact binary format in bytes.
+    ///
     pub fn len_bytes(&self) -> usize {
         self.scan_bytes().0
     }
 
+    /// Generate the compact binary format one byte at a time as an
+    /// iterator.
+    ///
     pub fn iter_bytes(&self) -> impl Iterator<Item = u8> + '_ {
         let widen = self.scan_bytes().1;
         Bytecodes { inner: self.widecodes(), prev: None, pos: 0, widen }
     }
 
+    /// Output the compact binary format to a [`std::io::Write`][]
+    /// object, one byte at a time.
+    ///
     pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<()>
     where
         W: std::io::Write,

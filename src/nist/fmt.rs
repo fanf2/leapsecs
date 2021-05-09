@@ -3,7 +3,6 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt::Write;
 
 use super::Hash;
-use crate::date::*;
 use crate::*;
 
 impl std::fmt::Display for Hash {

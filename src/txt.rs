@@ -1,3 +1,20 @@
+//! Compact text format for the leap second list
+//! ============================================
+//!
+//! This module implements a number of standard traits for the
+//! [`LeapSecs`][] type:
+//!
+//!   * [`std::str::FromStr`][] parses a leap second list in compact
+//!     text format, returning
+//!     `Result<`[`LeapSecs`][crate::LeapSecs]`, `[`Error`][enum@Error]`>`.
+//!
+//!   * [`std::fmt::Display`][] prints a leap second list in compact
+//!     text format.
+//!
+//!   * [`std::fmt::LowerHex`][] and [`std::fmt::UpperHex`][] print a
+//!     hexdump of a leap second list in compact binary format. There
+//!     is no parser for the opposite conversion.
+
 use crate::*;
 
 impl std::str::FromStr for LeapSecs {

@@ -104,13 +104,13 @@ fn curl_get(url: &str, buffer: &mut Vec<u8>) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::date;
+    use crate::date::*;
     use crate::nist;
 
     #[test]
     fn test() {
         let original = nist::read().expect("get leap-seconds.list");
-        let printed = nist::format(&original, date::today())
+        let printed = nist::format(&original, MJD::today())
             .expect("formatting leap seconds");
         let parsed = nist::read_str(&printed).expect("re-parsing leap-seconds");
         assert_eq!(original, parsed);

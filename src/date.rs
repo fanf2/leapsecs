@@ -1,6 +1,40 @@
+//! Modified Julian Dates and the Gregorian calendar
+//! ================================================
+//!
+//! The [date][self] module provides two types,
+//!
+//!   * [Gregorian][], representing a date in the Gregorian calendar.
+//!
+//!   * [MJD][], representing a Modified Julian Date, that is, a
+//!     signed count of days where 1858-11-17 is day zero.
+//!
+//! You can use the [From][] and [Into][] traits to convert between
+//! them in either direction. Conversion from MJD to Gregorian is
+//! about twice as expensive as conversion from Gregorian to MJD.
+
+/// A date in the Gregorian calendar
+///
+/// This is a tuple struct containing the year, month, and day, in ISO
+/// 8601 order. For example, the [MJD][] epoch is
+///
+///     # use leapsecs::*;
+///     let epoch = Gregorian(1858,11,17);
+///     assert_eq!(MJD::from(epoch), MJD::from(0));
+///
+/// [`Gregorian`][]'s [`std::fmt::Display`][]
+/// implementation prints the date in ISO 8601 format.
+///
+/// The elements of the date are represented as `i32`, to prioritize
+/// convenience rather than compactness.
+///
+/// This is a proleptic calendar: old dates are Gregorian not Julian,
+/// and very old dates include the year zero and negative years.
+///
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Gregorian(pub i32, pub i32, pub i32);
 
+/// Write a [Gregorian][] date in ISO 8601 format
+///
 impl std::fmt::Display for Gregorian {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:04}-{:02}-{:02}", self.year(), self.month(), self.day())
@@ -8,15 +42,24 @@ impl std::fmt::Display for Gregorian {
 }
 
 impl Gregorian {
+    /// Get the date's year
     pub fn year(self) -> i32 {
         self.0
     }
+    /// Get the date's month
     pub fn month(self) -> i32 {
         self.1
     }
+    /// Get the day of the month
     pub fn day(self) -> i32 {
         self.2
     }
+
+    /// Convert the date to an [MJD][]
+    ///
+    /// (This method can be used in `const` items, whereas
+    /// the [`From`][] trait cannot.)
+    ///
     pub const fn mjd(self) -> MJD {
         let Gregorian(y, m, d) = self;
         let (y, m) = if m > 2 { (y, m + 1) } else { (y - 1, m + 13) };
@@ -54,6 +97,13 @@ const fn muldiv(var: i32, mul: i32, div: i32) -> i32 {
     (var * mul).div_euclid(div)
 }
 
+/// A Modified Julian Date
+///
+/// An MJD is a signed count of days where 1858-11-17 is day zero.
+///
+/// [`MJD`][]'s [`std::fmt::Display`][] implementation prints the date
+/// in human-readable ISO 8601 format as well as the MJD number.
+///
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MJD(i32);
@@ -90,13 +140,17 @@ impl std::ops::Sub<MJD> for MJD {
     }
 }
 
-pub fn today() -> MJD {
-    use std::convert::TryFrom;
-    use std::time::SystemTime;
-    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
-    // panic if we are in a tardis
-    let days = now.unwrap().as_secs().div_euclid(86400);
-    MJD::from(Gregorian(1970, 1, 1)) + i32::try_from(days).unwrap()
+impl MJD {
+    /// Get today's date as an [`MJD`][]
+    ///
+    pub fn today() -> MJD {
+        use std::convert::TryFrom;
+        use std::time::SystemTime;
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+        // panic if we are in a tardis
+        let days = now.unwrap().as_secs().div_euclid(86400);
+        MJD::from(Gregorian(1970, 1, 1)) + i32::try_from(days).unwrap()
+    }
 }
 
 #[cfg(test)]
