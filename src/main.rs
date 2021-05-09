@@ -2,7 +2,8 @@ use leapsecs::*;
 
 fn main() -> anyhow::Result<()> {
     let list = nist::read()?;
-    print!("{}", nist::format(&list, date::today())?);
-    print!("{}", &list);
+    println!("{}", nist::format(&list, date::today())?);
+    println!("{}", &list);
+    println!("{:X}", &list);
     Ok(())
 }

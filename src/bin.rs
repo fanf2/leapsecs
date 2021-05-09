@@ -1,4 +1,5 @@
 use crate::*;
+use std::result::Result;
 
 const WIDE: u8 = 0x80;
 const MONTH: u8 = 0x40;
@@ -60,7 +61,7 @@ where
 
 impl std::convert::TryFrom<&[u8]> for LeapSecs {
     type Error = Error;
-    fn try_from(slice: &[u8]) -> Result<LeapSecs> {
+    fn try_from(slice: &[u8]) -> Result<LeapSecs, Error> {
         let mut list = LeapSecs::builder();
         let mut bytes = slice.iter();
         let mut nibbles = Nibble { inner: &mut bytes, byte: None };
@@ -80,9 +81,9 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
 }
 
 impl LeapSecs {
-    fn bytecodes<W>(&self, mut write: W) -> std::io::Result<()>
+    fn widecodes<F, E>(&self, mut emit: F) -> Result<(), E>
     where
-        W: FnMut(u8) -> std::io::Result<()>,
+        F: FnMut(u8) -> Result<(), E>,
     {
         for leap in self {
             let flags = match leap.sign() {
@@ -94,35 +95,35 @@ impl LeapSecs {
             let mut gap = leap.gap();
             if gap % 6 == 0 {
                 while gap >= 16 * 6 {
-                    write(WIDE | 15)?;
+                    emit(WIDE | 15)?;
                     gap -= 16 * 6;
                 }
                 let gap = gap as u8 / 6 - 1;
-                write(flags | gap)?;
+                emit(flags | gap)?;
             } else if gap <= 16 {
                 let gap = gap as u8 - 1;
-                write(flags | MONTH | gap)?;
+                emit(flags | MONTH | gap)?;
             } else {
                 while gap >= 16 * 6 {
-                    write(WIDE | 15)?;
+                    emit(WIDE | 15)?;
                     gap -= 16 * 6;
                 }
                 let years = gap / 12;
                 let months = gap % 12;
                 if years > 0 {
                     let gap = years as u8 * 2 - 1;
-                    write(WIDE | gap)?;
+                    emit(WIDE | gap)?;
                 }
                 let gap = months as u8 - 1;
-                write(flags | MONTH | gap)?;
+                emit(flags | MONTH | gap)?;
             }
         }
         Ok(())
     }
 
-    pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<usize>
+    pub fn for_each_byte<F, E>(&self, mut emit: F) -> Result<usize, E>
     where
-        W: std::io::Write,
+        F: FnMut(u8) -> Result<(), E>,
     {
         let mut last_nibble = 0;
         let mut nibble_count = 0;
@@ -131,7 +132,7 @@ impl LeapSecs {
         // first pass: calculate length and work out
         // how we will round to a whole number of bytes
 
-        self.bytecodes(|code| {
+        self.widecodes(|code| {
             if code == FLAGS | 4 {
                 expire_five = true;
                 nibble_count += 2;
@@ -160,7 +161,7 @@ impl LeapSecs {
         nibble_count = 0;
         let mut prev = None;
 
-        self.bytecodes(|code| {
+        self.widecodes(|code| {
             let (this, next) = if code & FLAGS != WIDE | POS
                 || wide(code & LOW)
                 || last_nibble == nibble_count + 1
@@ -172,22 +173,28 @@ impl LeapSecs {
                 (code << 4, None)
             };
             if let Some(low) = prev {
-                let byte = [low << 4 | this >> 4];
-                out.write_all(&byte)?;
+                emit(low << 4 | this >> 4)?;
                 prev = next;
             } else if let Some(low) = next {
-                let byte = [this | low];
-                out.write_all(&byte)?;
+                emit(this | low)?;
             } else {
                 prev = Some(this >> 4);
             }
             Ok(())
         })?;
 
+        nibble_count -= expire_five as usize;
         assert_eq!(expire_five, prev == Some(4));
         assert_eq!(!expire_five, prev == None);
         assert_eq!(expected_count, nibble_count);
         Ok(nibble_count / 2)
+    }
+
+    pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<usize>
+    where
+        W: std::io::Write,
+    {
+        self.for_each_byte(|byte| out.write_all(&[byte]))
     }
 }
 
@@ -213,7 +220,7 @@ mod test {
     #[test]
     fn test() {
         let binary: &[u8] = b"\x00\x11\x11\x11\x12\x11\x34\x31\
-                              \x21\x12\x22\x9D\x56\x52\x87\xFA";
+                              \x21\x12\x22\x9D\x56\x52\x7F";
         let parsed = LeapSecs::try_from(binary).unwrap();
         let written: Vec<u8> = parsed.into();
         assert_eq!(binary, written);

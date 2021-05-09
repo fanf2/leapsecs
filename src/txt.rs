@@ -68,6 +68,20 @@ impl std::fmt::Display for LeapSecs {
     }
 }
 
+impl std::fmt::LowerHex for LeapSecs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.for_each_byte(|byte| write!(f, "{:02x}", byte))?;
+        Ok(())
+    }
+}
+
+impl std::fmt::UpperHex for LeapSecs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.for_each_byte(|byte| write!(f, "{:02X}", byte))?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;
