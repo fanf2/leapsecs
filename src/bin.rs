@@ -142,54 +142,54 @@ impl LeapSecs {
         Widecodes { inner: self.iter(), flags: 0, gap: 0 }
     }
 
+    fn scan_bytes(&self) -> (usize, usize, bool) {
+        let mut len = 0;
+        let mut embiggen = 0;
+        let mut manx = false;
+
+        for code in self.widecodes() {
+            if code == FLAGS | 4 {
+                manx = true;
+                len += 2;
+            } else if code & FLAGS != WIDE | POS || wide(code & LOW) {
+                len += 2;
+            } else {
+                len += 1;
+                embiggen = len;
+            }
+        }
+
+        if len % 2 == 0 {
+            (len / 2, 0, false)
+        } else if manx {
+            (len / 2, 0, true)
+        } else {
+            (len / 2 + 1, embiggen, false)
+        }
+    }
+
+    pub fn len_bytes(&self) -> usize {
+        self.scan_bytes().0
+    }
+
     pub fn for_each_byte<F, E>(&self, mut emit: F) -> Result<usize, E>
     where
         F: FnMut(u8) -> Result<(), E>,
     {
-        let mut last_nibble = 0;
-        let mut nibble_count = 0;
-        let mut expire_five = false;
+        let (len, embiggen, manx) = self.scan_bytes();
 
-        // first pass: calculate length and work out
-        // how we will round to a whole number of bytes
-
-        for code in self.widecodes() {
-            if code == FLAGS | 4 {
-                expire_five = true;
-                nibble_count += 2;
-            } else if code & FLAGS != WIDE | POS || wide(code & LOW) {
-                nibble_count += 2;
-            } else {
-                nibble_count += 1;
-                last_nibble = nibble_count;
-            }
-        }
-
-        if nibble_count % 2 == 0 {
-            last_nibble = 0;
-            expire_five = false;
-        } else if expire_five {
-            last_nibble = 0;
-            nibble_count -= 1;
-        } else {
-            nibble_count += 1;
-        }
-
-        // second pass: actually write the output
-
-        let expected_count = nibble_count;
-        nibble_count = 0;
         let mut prev = None;
+        let mut pos = 0;
 
         for code in self.widecodes() {
             let (this, next) = if code & FLAGS != WIDE | POS
                 || wide(code & LOW)
-                || last_nibble == nibble_count + 1
+                || embiggen == pos + 1
             {
-                nibble_count += 2;
+                pos += 2;
                 (code & FLAGS, Some(code & LOW))
             } else {
-                nibble_count += 1;
+                pos += 1;
                 (code << 4, None)
             };
             if let Some(low) = prev {
@@ -202,11 +202,11 @@ impl LeapSecs {
             }
         }
 
-        nibble_count -= expire_five as usize;
-        assert_eq!(expire_five, prev == Some(4));
-        assert_eq!(!expire_five, prev == None);
-        assert_eq!(expected_count, nibble_count);
-        Ok(nibble_count / 2)
+        pos -= manx as usize;
+        assert_eq!(len, pos / 2);
+        assert_eq!(manx, prev == Some(4));
+        assert_eq!(!manx, prev == None);
+        Ok(len)
     }
 
     pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<usize>
