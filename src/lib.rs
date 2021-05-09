@@ -211,8 +211,11 @@ impl LeapSecBuilder {
     }
 
     pub fn finish(mut self) -> Result<LeapSecs> {
-        if self.0.is_empty() || self.0.last().unwrap().sign != Exp {
+        let last = self.last()?;
+        if last.sign != Exp {
             Err(Error::Truncated)
+        } else if last.mjd() < date::today() {
+            Err(Error::Expired(last.date()))
         } else {
             self.0.shrink_to_fit();
             Ok(LeapSecs(self.0))
