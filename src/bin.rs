@@ -52,7 +52,7 @@ impl<'a> Iterator for Expand<'a> {
             None => None,
             Some(lo) if !wide(lo) => Some(POS | lo),
             Some(hi) => match self.0.next() {
-                None => Some(hi << 4 | 4),
+                None => Some(hi << 4 | 4), // add trailing nibble
                 Some(lo) => Some(hi << 4 | lo),
             },
         }
@@ -137,34 +137,69 @@ impl<'a> Iterator for Widecodes<'a> {
     }
 }
 
+// squash bytecodes to nibbles where possible
+
+struct Bytecodes<'a> {
+    inner: Widecodes<'a>,
+    prev: Option<u8>,
+    pos: usize,
+    widen: usize,
+}
+
+impl<'a> Iterator for Bytecodes<'a> {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        let code = match self.inner.next() {
+            Some(code) => code,
+            None => return None,
+        };
+        let (this, next) = if code & FLAGS != WIDE | POS
+            || wide(code & LOW)
+            || self.widen == self.pos + 1
+        {
+            self.pos += 2;
+            (code & FLAGS, Some(code & LOW))
+        } else {
+            self.pos += 1;
+            (code << 4, None)
+        };
+        if let Some(low) = self.prev {
+            self.prev = next;
+            Some(low << 4 | this >> 4)
+        } else if let Some(low) = next {
+            Some(this | low)
+        } else {
+            self.prev = Some(this >> 4);
+            self.next()
+        }
+    }
+}
+
 impl LeapSecs {
     fn widecodes(&self) -> Widecodes<'_> {
         Widecodes { inner: self.iter(), flags: 0, gap: 0 }
     }
 
-    fn scan_bytes(&self) -> (usize, usize, bool) {
+    fn scan_bytes(&self) -> (usize, usize) {
         let mut len = 0;
-        let mut embiggen = 0;
-        let mut manx = false;
+        let mut widen = 0;
 
         for code in self.widecodes() {
             if code == FLAGS | 4 {
-                manx = true;
-                len += 2;
+                // omit trailing nibble
+                len += 1;
             } else if code & FLAGS != WIDE | POS || wide(code & LOW) {
                 len += 2;
             } else {
                 len += 1;
-                embiggen = len;
+                widen = len;
             }
         }
 
         if len % 2 == 0 {
-            (len / 2, 0, false)
-        } else if manx {
-            (len / 2, 0, true)
+            (len / 2, 0)
         } else {
-            (len / 2 + 1, embiggen, false)
+            (len / 2 + 1, widen)
         }
     }
 
@@ -172,48 +207,19 @@ impl LeapSecs {
         self.scan_bytes().0
     }
 
-    pub fn for_each_byte<F, E>(&self, mut emit: F) -> Result<usize, E>
-    where
-        F: FnMut(u8) -> Result<(), E>,
-    {
-        let (len, embiggen, manx) = self.scan_bytes();
-
-        let mut prev = None;
-        let mut pos = 0;
-
-        for code in self.widecodes() {
-            let (this, next) = if code & FLAGS != WIDE | POS
-                || wide(code & LOW)
-                || embiggen == pos + 1
-            {
-                pos += 2;
-                (code & FLAGS, Some(code & LOW))
-            } else {
-                pos += 1;
-                (code << 4, None)
-            };
-            if let Some(low) = prev {
-                emit(low << 4 | this >> 4)?;
-                prev = next;
-            } else if let Some(low) = next {
-                emit(this | low)?;
-            } else {
-                prev = Some(this >> 4);
-            }
-        }
-
-        pos -= manx as usize;
-        assert_eq!(len, pos / 2);
-        assert_eq!(manx, prev == Some(4));
-        assert_eq!(!manx, prev == None);
-        Ok(len)
+    pub fn iter_bytes(&self) -> impl Iterator<Item = u8> + '_ {
+        let widen = self.scan_bytes().1;
+        Bytecodes { inner: self.widecodes(), prev: None, pos: 0, widen }
     }
 
-    pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<usize>
+    pub fn write_bytes<W>(&self, out: &mut W) -> std::io::Result<()>
     where
         W: std::io::Write,
     {
-        self.for_each_byte(|byte| out.write_all(&[byte]))
+        for byte in self.iter_bytes() {
+            out.write_all(&[byte])?;
+        }
+        Ok(())
     }
 }
 
