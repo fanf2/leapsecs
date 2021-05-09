@@ -12,6 +12,12 @@ fn wide(nibble: u8) -> bool {
     nibble << 4 & WIDE != 0
 }
 
+//   __                 _         _
+//  / _|_ _ ___ _ __   | |__ _  _| |_ ___ ___
+// |  _| '_/ _ \ '  \  | '_ \ || |  _/ -_|_-<
+// |_| |_| \___/_|_|_| |_.__/\_, |\__\___/__/
+//                           |__/
+
 // iterate over bytes one nibble at a time
 
 struct Nibbles<'a> {
@@ -41,7 +47,7 @@ struct Expand<'a>(Nibbles<'a>);
 
 impl<'a> Iterator for Expand<'a> {
     type Item = u8;
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<u8> {
         match self.0.next() {
             None => None,
             Some(lo) if !wide(lo) => Some(POS | lo),
@@ -74,45 +80,66 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
     }
 }
 
-impl LeapSecs {
-    fn widecodes<F, E>(&self, mut emit: F) -> Result<(), E>
-    where
-        F: FnMut(u8) -> Result<(), E>,
-    {
-        for leap in self {
-            let flags = match leap.sign() {
-                Leap::Zero => continue,
-                Leap::Neg => WIDE | NEG,
-                Leap::Pos => WIDE | POS,
-                Leap::Exp => WIDE | NEG | POS,
-            };
-            let mut gap = leap.gap();
-            if gap % 6 == 0 {
-                while gap >= 16 * 6 {
-                    emit(WIDE | 15)?;
-                    gap -= 16 * 6;
-                }
-                let gap = gap as u8 / 6 - 1;
-                emit(flags | gap)?;
-            } else if gap <= 16 {
-                let gap = gap as u8 - 1;
-                emit(flags | MONTH | gap)?;
+//  _     _         _         _
+// (_)_ _| |_ ___  | |__ _  _| |_ ___ ___
+// | | ' \  _/ _ \ | '_ \ || |  _/ -_|_-<
+// |_|_||_\__\___/ |_.__/\_, |\__\___/__/
+//                       |__/
+
+// convert list of leap seconds to list of wide bytecodes
+
+struct Widecodes<'a> {
+    inner: std::slice::Iter<'a, LeapSec>,
+    flags: u8,
+    gap: u16,
+}
+
+impl<'a> Iterator for Widecodes<'a> {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        if self.gap == 0 {
+            if let Some(leap) = self.inner.next() {
+                self.flags = match leap.sign() {
+                    Leap::Zero => return self.next(),
+                    Leap::Neg => WIDE | NEG,
+                    Leap::Pos => WIDE | POS,
+                    Leap::Exp => WIDE | NEG | POS,
+                };
+                self.gap = leap.gap();
             } else {
-                while gap >= 16 * 6 {
-                    emit(WIDE | 15)?;
-                    gap -= 16 * 6;
-                }
-                let years = gap / 12;
-                let months = gap % 12;
-                if years > 0 {
-                    let gap = years as u8 * 2 - 1;
-                    emit(WIDE | gap)?;
-                }
-                let gap = months as u8 - 1;
-                emit(flags | MONTH | gap)?;
+                return None;
             }
         }
-        Ok(())
+        if self.gap >= 16 * 6 {
+            self.gap -= 16 * 6;
+            Some(WIDE | 15)
+        } else if self.gap % 6 == 0 {
+            let gap = self.gap as u8 / 6 - 1;
+            self.gap = 0;
+            Some(self.flags | gap)
+        } else if self.gap <= 16 {
+            let gap = self.gap as u8 - 1;
+            self.gap = 0;
+            Some(self.flags | MONTH | gap)
+        } else {
+            let years = self.gap / 12;
+            let months = self.gap % 12;
+            if years > 0 {
+                let gap = years as u8 * 2 - 1;
+                self.gap = months;
+                Some(WIDE | gap)
+            } else {
+                let gap = months as u8 - 1;
+                self.gap = 0;
+                Some(self.flags | MONTH | gap)
+            }
+        }
+    }
+}
+
+impl LeapSecs {
+    fn widecodes(&self) -> Widecodes<'_> {
+        Widecodes { inner: self.iter(), flags: 0, gap: 0 }
     }
 
     pub fn for_each_byte<F, E>(&self, mut emit: F) -> Result<usize, E>
@@ -126,7 +153,7 @@ impl LeapSecs {
         // first pass: calculate length and work out
         // how we will round to a whole number of bytes
 
-        self.widecodes(|code| {
+        for code in self.widecodes() {
             if code == FLAGS | 4 {
                 expire_five = true;
                 nibble_count += 2;
@@ -136,8 +163,7 @@ impl LeapSecs {
                 nibble_count += 1;
                 last_nibble = nibble_count;
             }
-            Ok(())
-        })?;
+        }
 
         if nibble_count % 2 == 0 {
             last_nibble = 0;
@@ -155,7 +181,7 @@ impl LeapSecs {
         nibble_count = 0;
         let mut prev = None;
 
-        self.widecodes(|code| {
+        for code in self.widecodes() {
             let (this, next) = if code & FLAGS != WIDE | POS
                 || wide(code & LOW)
                 || last_nibble == nibble_count + 1
@@ -174,8 +200,7 @@ impl LeapSecs {
             } else {
                 prev = Some(this >> 4);
             }
-            Ok(())
-        })?;
+        }
 
         nibble_count -= expire_five as usize;
         assert_eq!(expire_five, prev == Some(4));
