@@ -14,17 +14,14 @@ fn wide(nibble: u8) -> bool {
 
 // iterate over bytes one nibble at a time
 
-struct Nibble<'a, T> {
-    inner: &'a mut T,
+struct Nibbles<'a> {
+    inner: std::slice::Iter<'a, u8>,
     byte: Option<u8>,
 }
 
-impl<'a, T> Iterator for Nibble<'a, T>
-where
-    T: Iterator<Item = &'a u8>,
-{
+impl<'a> Iterator for Nibbles<'a> {
     type Item = u8;
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<u8> {
         if let Some(byte) = self.byte {
             self.byte = None;
             Some(byte)
@@ -40,12 +37,9 @@ where
 
 // convert nibbles to bytecodes
 
-struct Expand<'a, T>(&'a mut T);
+struct Expand<'a>(Nibbles<'a>);
 
-impl<'a, T> Iterator for Expand<'a, T>
-where
-    T: Iterator<Item = u8>,
-{
+impl<'a> Iterator for Expand<'a> {
     type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {
@@ -63,9 +57,9 @@ impl std::convert::TryFrom<&[u8]> for LeapSecs {
     type Error = Error;
     fn try_from(slice: &[u8]) -> Result<LeapSecs, Error> {
         let mut list = LeapSecs::builder();
-        let mut bytes = slice.iter();
-        let mut nibbles = Nibble { inner: &mut bytes, byte: None };
-        for code in Expand(&mut nibbles) {
+        let bytes = slice.iter();
+        let nibbles = Nibbles { inner: bytes, byte: None };
+        for code in Expand(nibbles) {
             let mul = if code & MONTH != 0 { 1 } else { 6 };
             let gap = (((code & LOW) + 1) * mul) as i32;
             let sign = match code & (NEG | POS) {
