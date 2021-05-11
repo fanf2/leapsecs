@@ -570,8 +570,8 @@ mod lib_test {
         let text = "6+6+12+12+12+12+12+12+12+18+12+12+24+30+24+\
                     12+18+12+12+18+18+18+84+36+42+36+18+59?";
         let list = LeapSecs::from_str(text).unwrap();
-        let mut prev = None;
         let mut it = list.iter().peekable();
+        let mut prev = None;
         while let this @ Some(_) = it.next() {
             let next = it.peek().copied();
             let inst = this.unwrap().mjd();
