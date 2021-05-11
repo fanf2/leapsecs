@@ -133,6 +133,13 @@ impl std::ops::Add<i32> for MJD {
     }
 }
 
+impl std::ops::Sub<i32> for MJD {
+    type Output = MJD;
+    fn sub(self, days: i32) -> MJD {
+        MJD(self.0 - days)
+    }
+}
+
 impl std::ops::Sub<MJD> for MJD {
     type Output = i32;
     fn sub(self, other: MJD) -> i32 {

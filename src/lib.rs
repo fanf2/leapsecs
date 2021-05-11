@@ -197,7 +197,6 @@ fn month_of(date: Gregorian, day: i32) -> Result<i32> {
 const EXPIRES_DATE: i32 = 28;
 
 impl LeapSec {
-
     /// Get the date immediately following the leap second. This is
     /// the date from which [`LeapSec::dtai()`][] is valid, or the list's
     /// expiry date if this [`LeapSec`][] is the last entry.
@@ -288,6 +287,61 @@ impl std::fmt::Display for LeapSec {
 pub struct LeapSecs(Vec<LeapSec>);
 
 impl LeapSecs {
+    /// Find the next leap second after a particular `date`.
+    ///
+    /// When a leap second occurs at the end of the given `date` (UTC),
+    /// that is the leap second described by the returned [`LeapSec`][]
+    /// object. The `date()` of this `LeapSec` is the following day,
+    /// when the new `dtai()` takes effect.
+    ///
+    /// If the given `date` is the day after a leap second, then the
+    /// following [`LeapSec`][] is returned.
+    ///
+    /// If the `date` is before 1972, then the first entry in the list is
+    /// returned, which does not indicate a leap second, but just holds
+    /// the initial value of DTAI at the start of 1972.
+    ///
+    /// If the `date` is after the list's expiry time then [`None`][] is
+    /// returned.
+    ///
+    pub fn after(&self, date: Gregorian) -> Option<&LeapSec> {
+        let mut prev = None;
+        for leap in self.iter().rev() {
+            if leap.date() <= date {
+                return prev;
+            } else {
+                prev = Some(leap);
+            }
+        }
+        Some(&self[0])
+    }
+
+    /// Find the previous leap second before a particular `date`.
+    ///
+    /// If the given `date` is the day after a leap second, that is the
+    /// leap second described by the returned [`LeapSec`][] object. The
+    /// `date()` of this `LeapSec` is the same day, when the new
+    /// `dtai()` takes effect.
+    ///
+    /// If the `date` is the day before a leap second, then the previous
+    /// [`LeapSec`][] is returned.
+    ///
+    /// If the `date` is before 1972, then [`None`][] is returned.
+    ///
+    /// If the date is after the list's expiry time then the
+    /// [`LeapSec`][] representing that expiry time is returned.
+    ///
+    pub fn before(&self, date: Gregorian) -> Option<&LeapSec> {
+        let mut prev = None;
+        for leap in self.iter() {
+            if leap.date() > date {
+                return prev;
+            } else {
+                prev = Some(leap);
+            }
+        }
+        self.0.last()
+    }
 
     /// Convenience method for getting a [`LeapSecBuilder`][]
     pub fn builder() -> LeapSecBuilder {
@@ -297,6 +351,11 @@ impl LeapSecs {
     /// Get the expiry date of the list.
     pub fn expires(&self) -> MJD {
         self.0.last().unwrap().mjd()
+    }
+
+    /// Get an element of the list
+    pub fn get(&self, i: usize) -> Option<&LeapSec> {
+        self.0.get(i)
     }
 
     /// Returns true if [`LeapSecs::len()`][] is zero
@@ -319,7 +378,7 @@ impl Index<usize> for LeapSecs {
     type Output = LeapSec;
 
     fn index(&self, i: usize) -> &LeapSec {
-        &self.0[i]
+        self.get(i).unwrap()
     }
 }
 
@@ -362,7 +421,6 @@ impl Default for LeapSecBuilder {
 }
 
 impl LeapSecBuilder {
-
     /// Get a new [`LeapSecBuilder`][]
     pub fn new() -> LeapSecBuilder {
         LeapSecBuilder(Vec::new())
@@ -499,5 +557,37 @@ impl LeapSecBuilder {
             }
         };
         self.push_leap_sec(last, gap, sign, month, Some(dtai))
+    }
+}
+
+#[cfg(test)]
+mod lib_test {
+    use crate::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test() {
+        let text = "6+6+12+12+12+12+12+12+12+18+12+12+24+30+24+\
+                    12+18+12+12+18+18+18+84+36+42+36+18+59?";
+        let list = LeapSecs::from_str(text).unwrap();
+        let last = list.len() - 1;
+        for i in 0..=last {
+            let this = list.get(i);
+            let inst = this.unwrap().mjd();
+            let today = Gregorian::from(inst);
+            let yesterday = Gregorian::from(inst - 1);
+            let before = Gregorian::from(inst - 16);
+            let after = Gregorian::from(inst + 16);
+            let prev = if i > 0 { list.get(i - 1) } else { None };
+            assert_eq!(prev, list.before(before), "before {}", before);
+            assert_eq!(prev, list.before(yesterday), "before {}", yesterday);
+            assert_eq!(this, list.before(today), "before {}", today);
+            assert_eq!(this, list.before(after), "before {}", after);
+            let next = list.get(i + 1);
+            assert_eq!(this, list.after(before), "after {}", before);
+            assert_eq!(this, list.after(yesterday), "after {}", yesterday);
+            assert_eq!(next, list.after(today), "after {}", today);
+            assert_eq!(next, list.after(after), "after {}", after);
+        }
     }
 }
