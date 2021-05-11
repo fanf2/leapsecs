@@ -395,10 +395,10 @@ impl LeapSecBuilder {
 
     fn push_leap_sec(
         &mut self,
-        last: LeapSec,
+        mut last: LeapSec,
         mut gap: i32,
         sign: Leap,
-        mut month: i32,
+        month: i32,
         dtai: Option<i16>,
     ) -> Result<()> {
         if last.sign == Exp {
@@ -406,7 +406,7 @@ impl LeapSecBuilder {
         }
         if last.sign == Zero && last.month != 0 {
             gap += last.gap as i32;
-            month += last.gap as i32;
+            last.month -= last.gap;
             self.0.pop();
         }
         let gap = match gap {
