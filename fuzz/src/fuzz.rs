@@ -8,9 +8,8 @@ use std::str::FromStr;
 fn fuzz_bin(data: &[u8]) {
     let parse1 = match LeapSecs::try_from(data) {
         Ok(parsed) => parsed,
-        Err(Error::Empty) => return,
         Err(Error::Expired(_)) => return,
-        Err(Error::FromInt(_)) => return,
+        Err(Error::FromInt(_)) if data.len() > 300 => return,
         Err(Error::Gap(..)) => return,
         Err(Error::Truncated) => return,
         Err(err) => panic!("\ninput {:?}\nerror {}\n", data, err),
@@ -26,9 +25,6 @@ fn fuzz_bin(data: &[u8]) {
 }
 
 fn fuzz_txt(data: &[u8]) {
-    if data.len() < 1 {
-        return;
-    }
     let mut input = String::new();
     for &byte in &data[1..] {
         let sign = if byte < 128 { "-" } else { "+" };
@@ -38,7 +34,7 @@ fn fuzz_txt(data: &[u8]) {
     let parsed = match LeapSecs::from_str(&input) {
         Ok(parsed) => parsed,
         Err(Error::Expired(_)) => return,
-        Err(Error::FromInt(_)) => return,
+        Err(Error::FromInt(_)) if data.len() > 250 => return,
         Err(e) => panic!("{}\n{}", input, e),
     };
     let output = format!("{}", parsed);
@@ -46,7 +42,7 @@ fn fuzz_txt(data: &[u8]) {
 }
 
 fuzz_target!(|data: &[u8]| {
-    if data.len() < 1 {
+    if data.len() < 2 {
         return;
     }
     let rest = &data[1..];
