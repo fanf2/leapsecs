@@ -406,8 +406,8 @@ impl LeapSecBuilder {
         }
         if last.sign == Zero && last.month != 0 {
             gap += last.gap as i32;
-            last.month -= last.gap;
             self.0.pop();
+            last = self.last()?;
         }
         let gap = match gap {
             1..=999 => gap as u16,
