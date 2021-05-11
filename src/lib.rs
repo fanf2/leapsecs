@@ -570,24 +570,24 @@ mod lib_test {
         let text = "6+6+12+12+12+12+12+12+12+18+12+12+24+30+24+\
                     12+18+12+12+18+18+18+84+36+42+36+18+59?";
         let list = LeapSecs::from_str(text).unwrap();
-        let last = list.len() - 1;
-        for i in 0..=last {
-            let this = list.get(i);
+        let mut prev = None;
+        let mut it = list.iter().peekable();
+        while let this @ Some(_) = it.next() {
+            let next = it.peek().copied();
             let inst = this.unwrap().mjd();
             let today = Gregorian::from(inst);
             let yesterday = Gregorian::from(inst - 1);
             let before = Gregorian::from(inst - 16);
             let after = Gregorian::from(inst + 16);
-            let prev = if i > 0 { list.get(i - 1) } else { None };
             assert_eq!(prev, list.before(before), "before {}", before);
             assert_eq!(prev, list.before(yesterday), "before {}", yesterday);
             assert_eq!(this, list.before(today), "before {}", today);
             assert_eq!(this, list.before(after), "before {}", after);
-            let next = list.get(i + 1);
             assert_eq!(this, list.after(before), "after {}", before);
             assert_eq!(this, list.after(yesterday), "after {}", yesterday);
             assert_eq!(next, list.after(today), "after {}", today);
             assert_eq!(next, list.after(after), "after {}", after);
+            prev = this;
         }
     }
 }
