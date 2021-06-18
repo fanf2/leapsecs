@@ -211,7 +211,11 @@ Nibbles are expanded to bytecodes as follows:
 
     the bits of the nibble look like 0GGG
 
-    one nibble is consumed and expanded into 00010GGG
+    one nibble is consumed and expanded into 00010GGG, where
+
+      - W=0 (not wide)
+      - M=0 (month multiplier is 6)
+      - NP=01 (positive leap second)
 
     that is, the value of the bytecode is the value of the nibble
     plus 0x10
