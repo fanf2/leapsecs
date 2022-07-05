@@ -12,7 +12,7 @@ mod parse;
 pub use fmt::format;
 
 const NIST_FILE: &str = "leap-seconds.list";
-const NIST_URL: &str = "ftp://ftp.nist.gov/pub/time/leap-seconds.list";
+const NIST_URL: &str = "ftp://ftp.boulder.nist.gov/pub/time/leap-seconds.list";
 
 pub fn read() -> anyhow::Result<LeapSecs> {
     Ok(read_bytes(&load_file(NIST_FILE).or_else(save_url)?)?)
